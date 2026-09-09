@@ -1,0 +1,289 @@
+description: Aletheia Ethereum, ENS, smart contract and blockchain rules
+alwaysApply: true
+---
+
+# Aletheia Ethereum Rules
+
+Phase 1 targets Ethereum Sepolia.
+
+Core stack:
+- Solidity
+- Hardhat
+- OpenZeppelin
+- viem
+- wagmi
+- ENS
+- The Graph
+
+Use current official documentation:
+- Ethereum: https://ethereum.org/developers/
+- ENS: https://docs.ens.domains/
+- Hardhat: https://hardhat.org/docs
+- OpenZeppelin: https://docs.openzeppelin.com/contracts/
+- viem: https://viem.sh/
+- wagmi: https://wagmi.sh/
+- The Graph: https://thegraph.com/docs/
+
+Never invent APIs, contract addresses, chain IDs, SDK methods, RPC endpoints, GraphQL endpoints, or deployment addresses.
+
+## Network
+
+Phase 1 = Ethereum Sepolia.
+
+Never silently deploy elsewhere.
+
+Use environment variables for:
+- RPC URLs
+- private keys
+- API keys
+- other secrets
+
+Never commit secrets, seed phrases, private keys, or credentials.
+
+## Smart contracts
+
+Expected core contracts:
+- `AletheiaVerifier`
+- `AletheiaProfile`
+
+Keep contracts minimal and purpose-specific.
+
+ZK verification must be real Groth16 verification.
+
+Never use:
+`verified = true`
+or equivalent simulated logic.
+
+The frontend is NEVER the source of truth for cryptographic verification.
+
+## Privacy
+
+Ethereum is public and permanent.
+
+Never store unnecessary personal data on-chain.
+
+Do NOT store:
+- date of birth
+- home address
+- passport number
+- raw credentials
+- private witnesses
+- private ZK inputs
+- uploaded documents
+
+Only store data required for protocol state, verification, authorization, replay protection, or indexing.
+
+## Events
+
+Emit structured events for information The Graph needs.
+
+Example:
+
+```solidity
+event VerificationCreated(
+    address indexed subject,
+    bytes32 indexed claimType,
+    bool result,
+    uint256 timestamp
+);
+
+Never emit private ZK inputs, witnesses, raw credentials, DOB, addresses, or passport numbers.
+
+Remember: events are permanent public data.
+
+Access control
+
+Security restrictions must be enforced on-chain.
+
+Use OpenZeppelin primitives where appropriate.
+
+Do not rely on frontend restrictions.
+
+Validate:
+
+caller authorization
+zero addresses
+malformed proofs
+invalid public signals
+duplicate submissions
+replay
+expired credentials
+invalid state transitions
+
+Treat all external inputs as hostile.
+
+ZK compatibility
+
+The Solidity verifier must correspond exactly to:
+
+Circuit → proving key → verification key → Solidity verifier
+
+Never mix artifacts from different circuits.
+
+Replay protection
+
+A valid ZK proof does not automatically prevent replay.
+
+Consider:
+
+nonce
+nullifier
+credential ID
+subject
+verification context
+expiry
+chain ID
+verifier contract
+
+Design replay protection before implementation.
+
+ENS
+
+ENS is the human-readable identity layer.
+
+Use ENS for:
+
+ENS name → Ethereum address
+
+and:
+
+Ethereum address → ENS name
+
+Do NOT use ENS to store:
+
+DOB
+passport data
+home address
+private credentials
+private ZK inputs
+
+Do not require every user to purchase an ENS name.
+
+Gracefully handle:
+
+existing ENS name
+no ENS name
+failed resolution
+
+If using ENS subnames, consult current ENS documentation. Never invent registry/resolver interfaces.
+
+The Graph
+
+The Graph is the indexing/query layer.
+
+Architecture:
+
+Contract events → Subgraph → GraphQL → Frontend/Verifier
+
+The subgraph must index real deployed contract events.
+
+Never hardcode:
+
+GraphQL responses
+verification records
+fake deployment addresses
+
+Schema, mappings, ABI, network, and contract address must match the actual deployment.
+
+Handle indexing delays and GraphQL failures honestly.
+
+Credential authenticity
+
+ZK proves the claim, not the issuer's real-world authority.
+
+Phase 1 uses a cryptographically signed mock trusted issuer.
+
+Keep:
+
+credential authenticity
+
+separate from:
+
+claim privacy
+
+Do not claim arbitrary PDFs are government-authenticated.
+
+DigiLocker/API Setu is a future credential adapter, not Phase 1.
+
+Frontend blockchain states
+
+Represent:
+
+not started
+wallet interaction
+pending
+confirmed
+failed
+
+Do not say "Verified" merely because a transaction was submitted.
+
+Wait for the correct receipt/state/event.
+
+Never fabricate:
+
+transaction hashes
+block numbers
+wallet addresses
+contract addresses
+verification status
+Testing
+
+Contracts must test:
+
+valid proof
+invalid proof
+malformed proof
+incorrect public signals
+unauthorized calls
+replay/duplicate submission
+event emission
+access control
+failure/revert cases
+boundary conditions
+
+Tests must cover failure as well as success.
+
+Deployment
+
+Before claiming deployment works:
+
+compile
+run tests
+verify ZK compatibility
+deploy to Sepolia
+record actual addresses
+test deployed contracts
+confirm events
+configure The Graph
+verify GraphQL queries
+test frontend integration
+No fake functionality
+
+Aletheia must be a real working protocol.
+
+Never fabricate:
+
+blockchain responses
+ENS resolution
+GraphQL responses
+proof hashes
+transaction hashes
+contract addresses
+verification results
+
+Mocks are allowed only when explicitly identified and isolated.
+
+Stop condition
+
+STOP and investigate official documentation if uncertain about:
+
+Solidity behavior
+OpenZeppelin APIs
+ENS interfaces
+ENS ownership/resolvers
+chain configuration
+wallet behavior
+Graph manifests/schema
+GraphQL
+ZK verifier interface
+replay protection
