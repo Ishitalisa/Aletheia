@@ -82,6 +82,43 @@ export async function verify(
   return snarkjs.groth16.verify(verificationKey(circuit), publicSignals, proof);
 }
 
+/** A proof in the argument form the generated Solidity verifier expects. */
+export interface SolidityCalldata {
+  a: readonly [bigint, bigint];
+  b: readonly [readonly [bigint, bigint], readonly [bigint, bigint]];
+  c: readonly [bigint, bigint];
+  publicSignals: readonly bigint[];
+}
+
+/**
+ * Convert a proof into Solidity call arguments.
+ *
+ * Delegated to snarkjs rather than transposed by hand: the G2 element's coordinate
+ * pairs are swapped relative to the JSON encoding, and getting that wrong produces a
+ * proof that fails on-chain while verifying perfectly off-chain.
+ */
+export async function toSolidityCalldata(
+  proof: Groth16Proof,
+  publicSignals: readonly string[],
+): Promise<SolidityCalldata> {
+  const raw = await snarkjs.groth16.exportSolidityCallData(proof, publicSignals);
+  const [a, b, c, signals] = JSON.parse(`[${raw}]`) as [
+    [string, string],
+    [[string, string], [string, string]],
+    [string, string],
+    string[],
+  ];
+  return {
+    a: [BigInt(a[0]), BigInt(a[1])],
+    b: [
+      [BigInt(b[0][0]), BigInt(b[0][1])],
+      [BigInt(b[1][0]), BigInt(b[1][1])],
+    ],
+    c: [BigInt(c[0]), BigInt(c[1])],
+    publicSignals: signals.map((signal) => BigInt(signal)),
+  };
+}
+
 /**
  * Release the worker threads snarkjs starts for curve arithmetic.
  *
