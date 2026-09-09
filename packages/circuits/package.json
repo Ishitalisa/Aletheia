@@ -1,0 +1,23 @@
+{
+  "name": "@aletheia/circuits",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Circom 2.x claim circuits: issuer signature verification, credential expiry, and per-claim statements.",
+  "scripts": {
+    "build": "node --experimental-strip-types --no-warnings scripts/compile.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pretest": "pnpm --filter @aletheia/credential run build && pnpm --filter @aletheia/issuer-mock run build && pnpm run build",
+    "test": "node --experimental-strip-types --no-warnings --test \"test/**/*.test.ts\""
+  },
+  "dependencies": {
+    "circomlib": "2.0.5"
+  },
+  "devDependencies": {
+    "@aletheia/credential": "workspace:*",
+    "@aletheia/issuer-mock": "workspace:*",
+    "@types/node": "^22.19.0",
+    "snarkjs": "0.7.6",
+    "typescript": "^5.9.2"
+  }
+}
