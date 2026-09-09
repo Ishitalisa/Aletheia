@@ -1,0 +1,17 @@
+{
+  "_comment": [
+    "Committed constraint counts per circuit, asserted by the test suite.",
+    "A change here must be deliberate and reviewed: a sudden drop can mean a check was",
+    "lost, and a jump can mean a template was instantiated by accident."
+  ],
+  "circuits": {
+    "age": {
+      "nonLinearConstraints": 8421,
+      "linearConstraints": 1872,
+      "publicInputs": 6,
+      "privateInputs": 8,
+      "publicOutputs": 1,
+      "wires": 10281
+    }
+  }
+}
