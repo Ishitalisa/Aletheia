@@ -10,7 +10,7 @@ import {
 import { generateKeypair, signCredential } from "@aletheia/issuer-mock";
 
 import {
-  ageClaimInput,
+  rawAgeInput,
   calculateAndCheckWitness,
   calculateWitness,
   compiledStats,
@@ -48,7 +48,7 @@ test("a signed credential satisfying the claim produces a valid witness", async 
   const { signed } = await signedFixture();
   const witness = await calculateAndCheckWitness(
     "age",
-    ageClaimInput(signed, { currentDate: CURRENT_DATE, minimumAge: 18, contextId: CONTEXT }),
+    rawAgeInput(signed, { currentDate: CURRENT_DATE, minimumAge: 18, contextId: CONTEXT }),
   );
   assert.equal(witness[0], 1n, "witness[0] is the constant one");
   assert.ok(witness.length > 10_000);
@@ -60,7 +60,7 @@ test("the circuit's nullifier matches the TypeScript derivation", async () => {
   const { signed } = await signedFixture();
   const witness = await calculateAndCheckWitness(
     "age",
-    ageClaimInput(signed, { currentDate: CURRENT_DATE, minimumAge: 18, contextId: CONTEXT }),
+    rawAgeInput(signed, { currentDate: CURRENT_DATE, minimumAge: 18, contextId: CONTEXT }),
   );
   const expected = await claimNullifier({
     credentialId: signed.credential.credentialId,
@@ -78,7 +78,7 @@ test("public signals appear in the documented order", async () => {
   // docs/public-signals.md.
   const { signed } = await signedFixture();
   const params = { currentDate: CURRENT_DATE, minimumAge: 18, contextId: CONTEXT };
-  const witness = await calculateAndCheckWitness("age", ageClaimInput(signed, params));
+  const witness = await calculateAndCheckWitness("age", rawAgeInput(signed, params));
   assert.deepEqual(witness.slice(2, 8), [
     signed.issuer.ax,
     signed.issuer.ay,
@@ -93,7 +93,7 @@ test("boundary: the claim holds on the birthday and fails the day before", async
   const { signed: onBirthday } = await signedFixture({ dateOfBirth: 20080909 });
   await calculateAndCheckWitness(
     "age",
-    ageClaimInput(onBirthday, { currentDate: CURRENT_DATE, minimumAge: 18, contextId: CONTEXT }),
+    rawAgeInput(onBirthday, { currentDate: CURRENT_DATE, minimumAge: 18, contextId: CONTEXT }),
   );
 
   const { signed: dayShort } = await signedFixture({ dateOfBirth: 20080910 });
@@ -101,7 +101,7 @@ test("boundary: the claim holds on the birthday and fails the day before", async
     () =>
       calculateWitness(
         "age",
-        ageClaimInput(dayShort, { currentDate: CURRENT_DATE, minimumAge: 18, contextId: CONTEXT }),
+        rawAgeInput(dayShort, { currentDate: CURRENT_DATE, minimumAge: 18, contextId: CONTEXT }),
       ),
     "a holder one day short of 18 must not be able to prove the claim",
   );
@@ -111,7 +111,7 @@ test("boundary: expiry is inclusive", async () => {
   const { signed } = await signedFixture({ expiryDate: CURRENT_DATE });
   await calculateAndCheckWitness(
     "age",
-    ageClaimInput(signed, { currentDate: CURRENT_DATE, minimumAge: 18, contextId: CONTEXT }),
+    rawAgeInput(signed, { currentDate: CURRENT_DATE, minimumAge: 18, contextId: CONTEXT }),
   );
 
   // Issued years ago and expired yesterday. The issuer refuses to sign a credential
@@ -124,7 +124,7 @@ test("boundary: expiry is inclusive", async () => {
     () =>
       calculateWitness(
         "age",
-        ageClaimInput(expired, { currentDate: CURRENT_DATE, minimumAge: 18, contextId: CONTEXT }),
+        rawAgeInput(expired, { currentDate: CURRENT_DATE, minimumAge: 18, contextId: CONTEXT }),
       ),
     "an expired credential must not satisfy an age claim",
   );
@@ -134,13 +134,13 @@ test("boundary: minimumAge 0 and 120", async () => {
   const { signed } = await signedFixture();
   await calculateAndCheckWitness(
     "age",
-    ageClaimInput(signed, { currentDate: CURRENT_DATE, minimumAge: 0, contextId: CONTEXT }),
+    rawAgeInput(signed, { currentDate: CURRENT_DATE, minimumAge: 0, contextId: CONTEXT }),
   );
 
   const { signed: veryOld } = await signedFixture({ dateOfBirth: 19060909, issuedAt: 20260909 });
   await calculateAndCheckWitness(
     "age",
-    ageClaimInput(veryOld, { currentDate: CURRENT_DATE, minimumAge: 120, contextId: CONTEXT }),
+    rawAgeInput(veryOld, { currentDate: CURRENT_DATE, minimumAge: 120, contextId: CONTEXT }),
   );
 });
 
@@ -150,14 +150,14 @@ test("boundary: the year rollover case from docs/date-format.md", async () => {
     () =>
       calculateWitness(
         "age",
-        ageClaimInput(dec31, { currentDate: 20260101, minimumAge: 18, contextId: CONTEXT }),
+        rawAgeInput(dec31, { currentDate: 20260101, minimumAge: 18, contextId: CONTEXT }),
       ),
   );
 
   const { signed: jan1 } = await signedFixture({ dateOfBirth: 20080101, issuedAt: 20260101 });
   await calculateAndCheckWitness(
     "age",
-    ageClaimInput(jan1, { currentDate: 20260101, minimumAge: 18, contextId: CONTEXT }),
+    rawAgeInput(jan1, { currentDate: 20260101, minimumAge: 18, contextId: CONTEXT }),
   );
 });
 
@@ -181,7 +181,7 @@ test("tampering with any signed field breaks the proof", async () => {
       () =>
         calculateWitness(
           "age",
-          ageClaimInput(forged, {
+          rawAgeInput(forged, {
             currentDate: CURRENT_DATE,
             minimumAge: 18,
             contextId: CONTEXT,
@@ -199,7 +199,7 @@ test("a credential signed by another key cannot be passed off as this issuer's",
     () =>
       calculateWitness(
         "age",
-        ageClaimInput(signed, {
+        rawAgeInput(signed, {
           currentDate: CURRENT_DATE,
           minimumAge: 18,
           contextId: CONTEXT,
@@ -218,7 +218,7 @@ test("a credential cannot be used from a different wallet", async () => {
     () =>
       calculateWitness(
         "age",
-        ageClaimInput(signed, {
+        rawAgeInput(signed, {
           currentDate: CURRENT_DATE,
           minimumAge: 18,
           contextId: CONTEXT,
@@ -240,7 +240,7 @@ test("signature components cannot be forged", async () => {
       () =>
         calculateWitness(
           "age",
-          ageClaimInput(
+          rawAgeInput(
             { ...signed, signature },
             { currentDate: CURRENT_DATE, minimumAge: 18, contextId: CONTEXT },
           ),
@@ -257,25 +257,25 @@ test("out-of-range public inputs are rejected by the circuit itself", async () =
   // minimumAge above the supported maximum: the range check exists so that
   // minimumAge * 10000 cannot wrap the field into a satisfiable threshold.
   await assert.rejects(
-    () => calculateWitness("age", ageClaimInput(signed, { ...base, minimumAge: 121 })),
+    () => calculateWitness("age", rawAgeInput(signed, { ...base, minimumAge: 121 })),
     "minimumAge 121 must be rejected",
   );
   await assert.rejects(
-    () => calculateWitness("age", ageClaimInput(signed, { ...base, minimumAge: 256 })),
+    () => calculateWitness("age", rawAgeInput(signed, { ...base, minimumAge: 256 })),
     "minimumAge beyond 8 bits must be rejected",
   );
 
   // currentDate outside the supported calendar range.
   await assert.rejects(
-    () => calculateWitness("age", ageClaimInput(signed, { ...base, currentDate: 21010101 })),
+    () => calculateWitness("age", rawAgeInput(signed, { ...base, currentDate: 21010101 })),
     "a currentDate after 2100 must be rejected",
   );
   await assert.rejects(
-    () => calculateWitness("age", ageClaimInput(signed, { ...base, currentDate: 18991231 })),
+    () => calculateWitness("age", rawAgeInput(signed, { ...base, currentDate: 18991231 })),
     "a currentDate before 1900 must be rejected",
   );
   await assert.rejects(
-    () => calculateWitness("age", ageClaimInput(signed, { ...base, currentDate: 2n ** 32n })),
+    () => calculateWitness("age", rawAgeInput(signed, { ...base, currentDate: 2n ** 32n })),
     "a currentDate beyond 32 bits must be rejected",
   );
 });
@@ -289,7 +289,7 @@ test("an age threshold below the supported range is rejected", async () => {
     () =>
       calculateWitness(
         "age",
-        ageClaimInput(signed, { currentDate: 19000102, minimumAge: 120, contextId: CONTEXT }),
+        rawAgeInput(signed, { currentDate: 19000102, minimumAge: 120, contextId: CONTEXT }),
       ),
   );
 });
@@ -298,7 +298,7 @@ test("a date of birth beyond 32 bits is rejected", async () => {
   // Not reachable through the issuer, which validates dates, so this bypasses it and
   // hands the circuit a raw out-of-range value directly.
   const { signed } = await signedFixture();
-  const input = ageClaimInput(signed, {
+  const input = rawAgeInput(signed, {
     currentDate: CURRENT_DATE,
     minimumAge: 18,
     contextId: CONTEXT,

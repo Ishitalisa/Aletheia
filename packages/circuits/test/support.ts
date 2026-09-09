@@ -1,13 +1,12 @@
 /**
  * Test support for the claim circuits.
  *
- * Witnesses are computed with the real compiled wasm and checked against the real r1cs
- * via snarkjs. There is no simulation here: a circuit that would reject an input rejects
- * it in these tests too.
+ * Witnesses are computed with the real compiled wasm and checked against the real r1cs.
+ * There is no simulation here: an input the circuit would reject is rejected in these
+ * tests too.
  */
 
-import { mkdtempSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,26 +16,12 @@ import {
   type SignedCredential,
 } from "@aletheia/credential";
 import { generateKeypair, signCredential } from "@aletheia/issuer-mock";
-import * as snarkjs from "snarkjs";
+
+import { calculateWitness, checkWitness, type CircuitInput } from "../src/index.ts";
+
+export { calculateWitness, releaseProver as terminateCurve } from "../src/index.ts";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
-
-/**
- * Shut down the worker pool snarkjs leaves running.
- *
- * `wtns.check` builds the bn128 curve, which spawns worker threads and caches them on
- * `globalThis`. Without terminating them the test process finishes its assertions and
- * then hangs forever instead of exiting.
- */
-export async function terminateCurve(): Promise<void> {
-  const curve = (globalThis as { curve_bn128?: { terminate(): Promise<void> } }).curve_bn128;
-  await curve?.terminate();
-}
-
-export function circuitArtifacts(name: string): { wasm: string; r1cs: string } {
-  const dir = join(packageRoot, "build", name);
-  return { wasm: join(dir, `${name}_js`, `${name}.wasm`), r1cs: join(dir, `${name}.r1cs`) };
-}
 
 export interface LockedStats {
   nonLinearConstraints: number;
@@ -64,33 +49,16 @@ export function compiledStats(name: string): LockedStats & { name: string } {
   ) as LockedStats & { name: string };
 }
 
-/**
- * Compute a witness. Rejects, rather than returning, when the circuit's constraints
- * cannot be satisfied — which is what every negative test asserts.
- */
-export async function calculateWitness(
-  name: string,
-  input: Record<string, string | number | bigint>,
-): Promise<bigint[]> {
-  const { wasm } = circuitArtifacts(name);
-  const wtnsPath = join(mkdtempSync(join(tmpdir(), "aletheia-wtns-")), "witness.wtns");
-  await snarkjs.wtns.calculate(input, wasm, wtnsPath);
-  return snarkjs.wtns.exportJson(wtnsPath);
-}
-
-/** Compute a witness and additionally verify it against the r1cs. */
+/** Compute a witness and verify it against the constraint system. */
 export async function calculateAndCheckWitness(
   name: string,
-  input: Record<string, string | number | bigint>,
+  input: CircuitInput,
 ): Promise<bigint[]> {
-  const { wasm, r1cs } = circuitArtifacts(name);
-  const wtnsPath = join(mkdtempSync(join(tmpdir(), "aletheia-wtns-")), "witness.wtns");
-  await snarkjs.wtns.calculate(input, wasm, wtnsPath);
-  const satisfied = await snarkjs.wtns.check(r1cs, wtnsPath);
-  if (!satisfied) {
+  const witness = await calculateWitness(name, input);
+  if (!(await checkWitness(name, witness.path))) {
     throw new Error(`witness does not satisfy the r1cs for ${name}`);
   }
-  return snarkjs.wtns.exportJson(wtnsPath);
+  return witness.values;
 }
 
 /** A real issuer signature over the committed fixture credential. */
@@ -103,8 +71,8 @@ export async function signedFixture(
   return { signed, privateKey };
 }
 
-export interface AgeClaimParams {
-  /** `bigint` is allowed so tests can hand the circuit out-of-range values directly. */
+export interface RawAgeParams {
+  /** `bigint` and out-of-range values are allowed: that is the point of these tests. */
   currentDate: number | bigint;
   minimumAge: number | bigint;
   contextId: bigint;
@@ -114,11 +82,14 @@ export interface AgeClaimParams {
   subject?: string;
 }
 
-/** Witness input for `age.circom`, exactly as the client will build it. */
-export function ageClaimInput(
-  signed: SignedCredential,
-  params: AgeClaimParams,
-): Record<string, string | number | bigint> {
+/**
+ * Assemble an `age.circom` input without the validation `ageClaimInput` applies.
+ *
+ * The library builder rejects nonsense before the circuit sees it, which is right for
+ * callers and useless for testing the circuit's own defences — an attacker will not use
+ * our builder. These tests hand the circuit the values directly.
+ */
+export function rawAgeInput(signed: SignedCredential, params: RawAgeParams): CircuitInput {
   const issuer = params.issuer ?? signed.issuer;
   const subject = params.subject ?? signed.credential.subject;
   return {
