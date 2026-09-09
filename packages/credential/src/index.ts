@@ -61,3 +61,9 @@ export {
   poseidonHash,
   type NullifierInput,
 } from "./hash.ts";
+
+export type { CredentialSigner } from "./issuer.ts";
+
+// Test support. Exported so every package tests against one credential fixture instead
+// of drifting copies; not part of the runtime surface.
+export { loadCredentialFixture, type CredentialFixture } from "./test-fixture.ts";
