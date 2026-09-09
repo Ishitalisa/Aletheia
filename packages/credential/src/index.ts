@@ -6,3 +6,58 @@ export {
   type ClaimTypeName,
   type ClaimTypeId,
 } from "./constants.ts";
+
+export {
+  FIELD_MODULUS,
+  SAFE_FIELD_BYTES,
+  addressToField,
+  assertFieldElement,
+  fieldToAddress,
+  fieldToBytes32,
+  hashToField,
+  isAddress,
+  isFieldElement,
+  randomFieldElement,
+} from "./field.ts";
+
+export {
+  MAX_MINIMUM_AGE,
+  ageThresholdYyyymmdd,
+  assertValidYyyymmdd,
+  completedYears,
+  dateToYyyymmdd,
+  daysInMonth,
+  isLeapYear,
+  isUnexpired,
+  isValidYyyymmdd,
+  parseYyyymmdd,
+  satisfiesMinimumAge,
+  splitYyyymmdd,
+  todayUtcYyyymmdd,
+  toYyyymmdd,
+  yyyymmddToDate,
+  type CalendarDate,
+} from "./date.ts";
+
+export {
+  MAX_COUNTRY_CODE,
+  MIN_COUNTRY_CODE,
+  assertNormalizedCredential,
+  credentialSupportsDate,
+  isCountryCode,
+  isNormalizedCredential,
+  parseSignedCredential,
+  serializeSignedCredential,
+  type CredentialSignature,
+  type IssuerPublicKey,
+  type NormalizedCredential,
+  type SignedCredential,
+  type SignedCredentialJson,
+} from "./credential.ts";
+
+export {
+  claimNullifier,
+  credentialMessageHash,
+  poseidonHash,
+  type NullifierInput,
+} from "./hash.ts";
