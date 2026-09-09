@@ -1,0 +1,204 @@
+---
+description: Aletheia ZK proof engineering rules
+alwaysApply: true
+---
+
+# Aletheia ZK Proof Rules
+
+Aletheia uses Circom, circomlib, snarkjs, Groth16, and a Solidity verifier on Ethereum Sepolia.
+
+## Source of truth
+
+Use current official documentation:
+- Circom: https://docs.circom.io/
+- snarkjs: https://github.com/iden3/snarkjs
+- circomlib: https://github.com/iden3/circomlib
+
+Never invent commands, APIs, circuit syntax, proof formats, or verifier interfaces.
+
+## Core pipeline
+
+Trusted credential
+→ private inputs
+→ Circom circuit
+→ witness
+→ Groth16 proof
+→ local verification
+→ Solidity verifier
+→ Ethereum Sepolia
+→ verification event
+→ The Graph
+
+Every stage must be real. Never simulate cryptographic verification.
+
+## Privacy
+
+The goal is selective disclosure.
+
+Example:
+Prove `age >= 18` without revealing `dateOfBirth`.
+
+Sensitive data must remain private and must NOT appear in:
+- public circuit inputs
+- public signals
+- contract storage
+- contract events
+- Graph entities
+- URLs
+- logs
+
+unless explicitly required and reviewed.
+
+## Circuit design
+
+Every circuit must clearly define:
+- private inputs
+- public inputs
+- mathematical statement
+- constraints
+
+A computed value is not automatically constrained.
+
+Be especially careful with Circom:
+`<--`, `-->`, `<==`, `==>`
+
+Use actual constraints for every security-critical relationship.
+
+Never hardcode:
+- proofs
+- witnesses
+- public signals
+- verification results
+- proof hashes
+
+## Phase 1 circuits
+
+### Age
+Prove:
+`age >= minimumAge`
+
+Private:
+`dateOfBirth`
+
+Public:
+`currentDate`, `minimumAge`
+
+### Nationality
+Prove:
+`credential.nationality == requiredNationality`
+
+### Expiry
+Prove:
+`expiryDate >= currentDate`
+
+The exact implementation must use proper constrained arithmetic.
+
+## Dates and arithmetic
+
+Circom uses finite-field arithmetic, not normal JavaScript number semantics.
+
+Before implementing date comparisons, choose and document one canonical representation such as:
+- Unix timestamp
+- days from an epoch
+- YYYYMMDD
+
+Consider:
+- range constraints
+- underflow
+- overflow
+- malformed dates
+- boundary conditions
+- timezone consistency
+
+Frontend and circuit must use the same representation.
+
+## Credential authenticity
+
+A ZK proof proves only what the circuit constrains.
+
+A proof that a credential says someone is over 18 does NOT prove the credential was issued by a government.
+
+Phase 1 therefore uses a cryptographically signed mock trusted issuer.
+
+Keep:
+`credential authenticity`
+separate from
+`claim privacy`.
+
+Future DigiLocker/API Setu integration should replace the credential source without rewriting the ZK layer.
+
+## Groth16
+
+Use:
+- circuit compilation
+- R1CS
+- WASM witness generation
+- Powers of Tau
+- circuit-specific Phase 2 setup
+- proving key
+- verification key
+- proof generation
+- proof verification
+- Solidity verifier
+
+Do not treat arbitrary development keys as production trusted setup material.
+
+Never commit private ceremony secrets, credentials, witnesses, or other sensitive proving data.
+
+## Testing
+
+Every circuit must test:
+1. valid input
+2. invalid input
+3. boundary input
+4. malformed input
+5. public-signal correctness
+6. privacy leakage
+
+For `age >= 18`:
+- 17 → fail
+- 18 → succeed
+- 19 → succeed
+
+Also test modified credentials, incorrect public inputs, invalid dates, and tampered proofs.
+
+## Replay
+
+Groth16 does not automatically prevent replay.
+
+Before on-chain verification, reason about:
+- nonce
+- nullifier
+- credential ID
+- subject
+- verification context
+- expiry
+- duplicate submissions
+
+Implement replay protection according to the actual protocol semantics.
+
+## Solidity verification
+
+The Solidity verifier must correspond exactly to the circuit and verification key.
+
+Before claiming success:
+1. compile circuit
+2. generate witness
+3. generate proof
+4. verify locally
+5. verify through Solidity
+6. test invalid proof/input
+
+If any step fails, report the failure. Never fall back to fake verification.
+
+## Stop condition
+
+STOP and investigate official documentation if uncertain about:
+- circuit constraints
+- date encoding
+- finite-field arithmetic
+- trusted setup
+- proof format
+- verification key
+- Solidity verifier interface
+- replay model
