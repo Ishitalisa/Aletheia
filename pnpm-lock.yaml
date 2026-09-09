@@ -21,6 +21,22 @@ importers:
         specifier: ^5.9.2
         version: 5.9.3
 
+  packages/issuer-mock:
+    dependencies:
+      '@aletheia/credential':
+        specifier: workspace:*
+        version: link:../credential
+      circomlibjs:
+        specifier: 0.1.7
+        version: 0.1.7
+    devDependencies:
+      '@types/node':
+        specifier: ^22.19.0
+        version: 22.20.1
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+
 packages:
 
   '@ethersproject/abi@5.8.0':
