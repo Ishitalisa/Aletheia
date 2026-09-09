@@ -23,7 +23,7 @@ risk.
 | Manipulated public signals | contract independently checks issuer, subject, date freshness and parameter ranges; the circuit range-checks the same values so field wraparound cannot forge a threshold | stages 4, 9 |
 | Public-signal reordering after a recompile | order frozen in `docs/public-signals.md` and asserted against generated artifacts | stages 6, 8 |
 | Under-constrained circuit | `--inspect` must be clean; constraint count snapshotted; no `<--` without a matching `===` | stage 4 |
-| Trusted-setup toxic waste | Perpetual Powers of Tau for phase 1; single-contributor phase 2 in development is a documented blocker for production | `docs/trust-model.md` |
+| Trusted-setup toxic waste | published Perpetual Powers of Tau for phase 1 when obtainable, hash-verified, otherwise a locally generated phase 1 recorded as such; single-contributor phase 2 in development is a documented blocker for production | `docs/trust-model.md` |
 
 ## Replay and identity binding
 

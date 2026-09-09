@@ -36,4 +36,113 @@ declare module "snarkjs" {
   export namespace r1cs {
     function info(r1csFileName: string, logger?: Logger): Promise<unknown>;
   }
+
+  export interface Curve {
+    name: string;
+    terminate(): Promise<void>;
+  }
+
+  export namespace curves {
+    function getCurveFromName(name: string): Promise<Curve>;
+  }
+
+  /** Phase 1. Only used when the published ceremony file cannot be obtained. */
+  export namespace powersOfTau {
+    function newAccumulator(
+      curve: Curve,
+      power: number,
+      fileName: string,
+      logger?: Logger,
+    ): Promise<unknown>;
+
+    function contribute(
+      oldPtauFilename: string,
+      newPTauFilename: string,
+      name: string,
+      entropy: string,
+      logger?: Logger,
+    ): Promise<unknown>;
+
+    function beacon(
+      oldPtauFilename: string,
+      newPTauFilename: string,
+      name: string,
+      beaconHashStr: string,
+      numIterationsExp: number,
+      logger?: Logger,
+    ): Promise<unknown>;
+
+    function preparePhase2(
+      oldPtauFilename: string,
+      newPTauFilename: string,
+      logger?: Logger,
+    ): Promise<unknown>;
+
+    function verify(tauFilename: string, logger?: Logger): Promise<boolean>;
+  }
+
+  export namespace zKey {
+    /** Phase-2 initialisation from a constraint system and a phase-1 ceremony file. */
+    function newZKey(
+      r1csName: string,
+      ptauName: string,
+      zkeyName: string,
+      logger?: Logger,
+    ): Promise<void>;
+
+    function contribute(
+      zkeyNameOld: string,
+      zkeyNameNew: string,
+      name: string,
+      entropy: string,
+      logger?: Logger,
+    ): Promise<unknown>;
+
+    function beacon(
+      zkeyNameOld: string,
+      zkeyNameNew: string,
+      name: string,
+      beaconHashStr: string,
+      numIterationsExp: number,
+      logger?: Logger,
+    ): Promise<unknown>;
+
+    /** True when the proving key really was derived from this r1cs and ptau. */
+    function verifyFromR1cs(
+      r1csFileName: string,
+      pTauFileName: string,
+      zkeyFileName: string,
+      logger?: Logger,
+    ): Promise<boolean>;
+
+    function exportVerificationKey(zkeyName: string, logger?: Logger): Promise<unknown>;
+
+    function exportSolidityVerifier(
+      zKeyName: string,
+      templates: Record<string, string>,
+      logger?: Logger,
+    ): Promise<string>;
+  }
+
+  export namespace groth16 {
+    function prove(
+      zkeyFileName: string,
+      witnessFileName: string,
+      logger?: Logger,
+    ): Promise<{ proof: unknown; publicSignals: string[] }>;
+
+    function fullProve(
+      input: CircuitInput,
+      wasmFile: string,
+      zkeyFileName: string,
+      logger?: Logger,
+    ): Promise<{ proof: unknown; publicSignals: string[] }>;
+
+    function verify(
+      vkVerifier: unknown,
+      publicSignals: readonly string[],
+      proof: unknown,
+      logger?: Logger,
+    ): Promise<boolean>;
+  }
 }

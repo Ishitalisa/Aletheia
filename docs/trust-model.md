@@ -54,14 +54,28 @@ Any claim that a mock-signed credential proves government identity would be fals
 
 ## Trusted setup status
 
-- **Phase 1 (universal):** the published Perpetual Powers of Tau `ptau` file, pinned by
-  hash. Real, multi-party.
-- **Phase 2 (per circuit):** **single contributor** during development. This is a real
-  trust assumption: whoever ran the contribution could forge proofs if they retained the
-  toxic waste.
+- **Phase 1 (universal):** the published Perpetual Powers of Tau file is preferred and is
+  verified against the blake2b hash published in the snarkjs README, so any mirror will
+  do — the hash is what is trusted, not the host.
 
-**This blocks production use.** A multi-party phase-2 ceremony is required before any
-real issuer is registered.
+  In practice both official hosts (the `zkevm` Google Storage bucket and the legacy
+  Hermez S3 bucket) currently return HTTP 403 for every power, so `scripts/setup.ts`
+  falls back to **generating a phase 1 locally**, which has no multi-party guarantee at
+  all. Which one was used is recorded in `build/<circuit>/setup.json` as
+  `phase1Provenance`, so the two can never be confused. Set `ALETHEIA_PTAU` to a local
+  copy of the published file to use the real ceremony instead.
+- **Phase 2 (per circuit):** **single contributor** during development. Whoever ran the
+  contribution could forge proofs if they retained the toxic waste. The beacon value in
+  `scripts/setup.ts` is a fixed development constant, not public randomness, and is
+  labelled as such in the code.
+
+**This blocks production use**, and would even with a perfect phase 1: a multi-party
+phase-2 ceremony with published transcripts is required before any real issuer is
+registered. Every setup record carries `productionReady: false` for this reason.
+
+What this does *not* undermine: the proofs are real Groth16 proofs, the circuit is real,
+and verification genuinely fails for invalid inputs. An unsound setup means someone with
+the toxic waste could forge a proof — it does not mean the system is faking proofs.
 
 ## Trust anchors, summarised
 
