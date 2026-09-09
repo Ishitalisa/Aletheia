@@ -1,4 +1,10 @@
 packages:
   - packages/*
+
+# Install scripts run arbitrary code, so each one is allowed deliberately.
 allowBuilds:
-  blake-hash: set this to true or false
+  # circomlibjs falls back to a JavaScript implementation for the paths Aletheia uses
+  # (Poseidon and EdDSA), so this native build is not needed.
+  blake-hash: false
+  # Fetches its own platform binary; Hardhat cannot run without it.
+  esbuild: true

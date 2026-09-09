@@ -144,5 +144,11 @@ declare module "snarkjs" {
       proof: unknown,
       logger?: Logger,
     ): Promise<boolean>;
+
+    /** Proof and signals rendered as Solidity call arguments, comma separated. */
+    function exportSolidityCallData(
+      proof: unknown,
+      publicSignals: readonly string[],
+    ): Promise<string>;
   }
 }
