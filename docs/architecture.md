@@ -4,13 +4,14 @@
 
 ```
 USER DEVICE (everything private stays here)
-  PDF ---- pdfjs-dist, in a worker ----> candidate fields (untrusted input)
-  candidate fields ---- normalizer ----> normalized credential (YYYYMMDD, ISO 3166-1 numeric)
+  camera scan / image / PDF ---- OCR + MRZ parse, in a worker ----> candidate fields (untrusted input)
+  candidate fields ---- user review and correction ----> confirmed fields
+  confirmed fields ---- normalizer ----> normalized credential (YYYYMMDD, ISO 3166-1 numeric)
   normalized credential ---- MOCK ISSUER (localhost, dev only) ----> signed credential
   signed credential + chosen claim ---- snarkjs in browser ----> Groth16 proof + public signals
 
 ETHEREUM SEPOLIA
-  AletheiaVerifier.submitVerification(claimType, proof, publicSignals)
+  AletheiaVerifier.submitAgeClaim(proof, publicSignals)        // one entrypoint per claim type
     issuer active?  subject == msg.sender?  currentDate fresh?  param in range?
     nullifier unused?  Groth16Verifier<Claim>.verifyProof()
     -> emit ClaimVerified
@@ -36,7 +37,7 @@ Ethereum is the only authority. The frontend is authoritative for nothing.
 | `packages/circuits` | circom 2.x sources (`lib/credential.circom` shared base + one file per claim), build and setup scripts, circuit tests. |
 | `packages/contracts` | Hardhat 3 project: snarkjs-generated Groth16 verifiers (verbatim), `AletheiaVerifier`, `AletheiaIssuerRegistry`, `AletheiaProfile`, `DateLib`, tests, Ignition modules. |
 | `packages/subgraph` | schema, manifest, mappings, matchstick tests. |
-| `packages/web` | Next.js app: holder flow (extract, review, sign, prove, submit) and verifier flow (resolve, query, render states). Also owns PDF extraction. |
+| `packages/web` | Next.js app: holder flow (extract, review, sign, prove, submit) and verifier flow (resolve, query, render states). Also owns document extraction — camera scan, image and PDF — which runs client-side only and holds no signing capability. |
 | `scripts` | cross-package end-to-end runner. |
 | `docs` | this directory. |
 
@@ -44,6 +45,12 @@ Ethereum is the only authority. The frontend is authoritative for nothing.
 
 See `docs/credential-schema.md` for the normative field list and signed-message layout,
 and `docs/date-format.md` for the date encoding.
+
+Documents reach this model through extraction, which is untrusted by construction:
+`docs/passport-extraction.md` gives the MRZ field mapping, the century-inference rule, the
+nationality code table policy, and what a camera scan can and cannot establish. A
+passport supplies `dateOfBirth`, `nationality` and `expiryDate` directly, with no schema
+change, which is why all three Phase 1 claims are reachable from one scan.
 
 Private, never transmitted: PDF, extracted text, date of birth, nationality value,
 expiry date, issued-at date, credential ID, issuer signature.
@@ -88,6 +95,12 @@ regenerating a circuit can silently reorder signals and break contract decoding.
   parameter ranges, issuer activity, and nullifier novelty, then calls the claim's
   Groth16 verifier and emits `ClaimVerified`. No `bool result` field exists: an invalid
   proof reverts, so no record can be false.
+
+  There is one entrypoint per claim type, each typed to its circuit's signal count, and
+  the contracts are not upgradeable. The deployment recorded in `docs/deployments.md`
+  therefore serves age claims only: stages 17 and 18 add `submitNationalityClaim` and
+  `submitExpiryClaim`, which means deploying a new `AletheiaVerifier`. The registry, the
+  profile contract and the age verifier are unaffected and are reused as they are.
 - **`AletheiaProfile`** — deliberately tiny (`register()` plus an event). Separate from
   the verifier so the verifier holds no identity state. Stores **no ENS name**; an
   unverified name string on-chain would be exactly the kind of fake record this project
@@ -141,8 +154,8 @@ indexed entity — never by a unit test alone.
 | 13 | GraphQL query layer | all five states reproduced from real endpoint data |
 | 14 | ENS resolution | real name resolves; missing name is not-found, not an error |
 | — | **M1: end-to-end milestone** | one command: signed credential -> circuit -> proof -> local verify -> Solidity verify -> Sepolia tx -> event -> Graph -> verifier query |
-| 15 | PDF extraction | supported fixture extracts; unsupported returns *unsupported*, never a guess |
-| 16 | Frontend (age only) | browser run on Sepolia; PDF never leaves the device; pending shown before verified |
+| 15 | Document extraction (camera scan, image, PDF) | MRZ fixture extracts; failing check digit reports which field; ambiguous century and unmappable nationality return *unsupported*, never a guess |
+| 16 | Frontend (age only) | browser run on Sepolia; the document never leaves the device; pending shown before verified |
 | 17 | NationalityClaim | stages 4-13 gates repeated; disclosure notice shown pre-proof |
 | 18 | ExpiryClaim | same, plus `expiryDate == currentDate` boundary on-chain |
 | 19 | Multi-claim end-to-end | three real transactions, three real records, distinct nullifiers |

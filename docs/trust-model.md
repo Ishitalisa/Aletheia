@@ -10,19 +10,40 @@ claim layer          a ZK proof shows a signed credential satisfies a claim
 The claim layer never learns who the issuer is beyond a public key, so replacing the
 issuer does not touch the circuits, contracts, or subgraph.
 
-## The PDF is input, not evidence
+## The document is input, not evidence
 
 ```
-PDF  ->  extracted candidate fields  ->  normalized credential  ->  ISSUER SIGNATURE  ->  trusted credential
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^      ^^^^^^^^^^^^^^^^
-         untrusted, user-correctable, may fail outright              the only source of trust
+scan / photo / PDF  ->  extracted candidate fields  ->  normalized credential  ->  ISSUER SIGNATURE  ->  trusted credential
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^      ^^^^^^^^^^^^^^^^
+                        untrusted, user-correctable, may fail outright              the only source of trust
 ```
 
-A PDF upload proves nothing whatsoever. Extraction is a convenience that saves typing.
+An upload proves nothing whatsoever. Extraction is a convenience that saves typing.
 Where a document layout is unsupported or extraction confidence is low, Aletheia says so
 and asks for manual entry rather than guessing. Extraction code lives in the web package
-and has no ability to sign; the issuer package cannot read PDFs. The separation is
+and has no ability to sign; the issuer package cannot read documents. The separation is
 structural, not a matter of discipline.
+
+This holds with particular force for a **camera-scanned passport**, because that flow
+looks the most like verification while being exactly as unverified as the rest. The data
+page is not signed by anyone. Optical character recognition converts pixels to text and
+adds no authority in the process. The MRZ check digits catch a misread `0` for `O`; they
+are computable by anyone and so catch no forgery at all. A photograph of someone else's
+passport, or an outright fabrication, yields a signed credential just the same.
+
+What a passport-derived Phase 1 credential means, stated without flattery:
+
+> An image was uploaded to this device, parsed into these fields, confirmed by whoever
+> was holding the device, and signed by a mock issuer that verifies nothing.
+
+No UI surface may describe this as a verified passport, a verified identity, or a
+verified nationality. The `mock-dev` label exists for precisely this case.
+
+The chip inside an ICAO 9303 e-passport *is* signed by the issuing country, and reading
+the MRZ is what derives the key to open it — so the extraction step is the first half of a
+real solution rather than a dead end. `docs/passport-extraction.md` covers the mapping and
+its limits; the two ways to consume a government signature are Path A and Path B in
+`docs/phase2-digilocker.md`.
 
 ## What a verification record means
 
@@ -35,6 +56,34 @@ A `ClaimVerified` event means, and only means:
 
 It does not mean the holder is who they say they are. That depends entirely on how much
 the issuer is worth trusting.
+
+### The identity nullifier the record carries
+
+`ClaimVerified` carries `identityNullifier = Poseidon(identitySecret, contextId)`, a v2
+signal, and this is deliberate: it is the only reason the signal exists. Within one
+context it is stable across every credential and every wallet the same person proves with,
+so it is the handle that makes "one identity, N verifications in this context" observable —
+the property multi-claim indexing in later stages depends on. It is on-chain in the proof
+calldata whether or not the event repeats it; putting it in the event only makes it
+indexable by the subgraph rather than recoverable by decoding transactions.
+
+The consequence, stated plainly, is that the record is a **per-context correlation
+handle**. Anyone reading the subgraph can group all records sharing an `identityNullifier`
+and know they belong to one identity, and — since `subject` is already public in the same
+event — can link two *different wallets* used by that one identity within that context.
+That linkage is new information the `subject` field alone does not give.
+
+Its scope is bounded by construction, and this is the reason `contextId` is mixed in:
+
+- It **cannot** correlate an identity across contexts. A different `contextId` yields an
+  unrelated value, so a verifier in context A learns nothing about the same person's
+  records in context B. This is why a per-verifier `contextId` is load-bearing for
+  privacy, not a formality.
+- It reveals **nothing** about the underlying identity, document, date of birth or issuer
+  salt: it is a Poseidon image, not a decodable field.
+
+A verifier that does not want its records grouped this way must not reuse a `contextId`
+across the holders it should not be able to link.
 
 ## Phase 1 issuer: mock, labelled, isolated
 
