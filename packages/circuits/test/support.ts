@@ -80,6 +80,8 @@ export interface RawAgeParams {
   issuer?: { ax: bigint; ay: bigint };
   /** Override the public subject, to model a stolen-credential attempt. */
   subject?: string;
+  /** Override the public schemaVersion, to test the circuit's version pin. */
+  schemaVersion?: number | bigint;
 }
 
 /**
@@ -98,9 +100,11 @@ export function rawAgeInput(signed: SignedCredential, params: RawAgeParams): Cir
     nationality: signed.credential.nationality,
     expiryDate: signed.credential.expiryDate,
     issuedAt: signed.credential.issuedAt,
+    identitySecret: signed.credential.identitySecret,
     sigR8x: signed.signature.r8x,
     sigR8y: signed.signature.r8y,
     sigS: signed.signature.s,
+    schemaVersion: params.schemaVersion ?? signed.credential.schemaVersion,
     issuerAx: issuer.ax,
     issuerAy: issuer.ay,
     currentDate: params.currentDate,

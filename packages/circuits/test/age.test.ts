@@ -3,7 +3,9 @@ import { after, test } from "node:test";
 
 import {
   CLAIM_TYPE,
+  SCHEMA_VERSION,
   claimNullifier,
+  identityNullifier,
   loadCredentialFixture,
   type NormalizedCredential,
 } from "@aletheia/credential";
@@ -72,6 +74,57 @@ test("the circuit's nullifier matches the TypeScript derivation", async () => {
   assert.equal(witness[1], fixture.expected.nullifierAge);
 });
 
+test("the circuit's identity nullifier matches the TypeScript derivation", async () => {
+  const { signed } = await signedFixture();
+  const witness = await calculateAndCheckWitness(
+    "age",
+    rawAgeInput(signed, { currentDate: CURRENT_DATE, minimumAge: 18, contextId: CONTEXT }),
+  );
+  const expected = await identityNullifier({
+    identitySecret: signed.credential.identitySecret,
+    contextId: CONTEXT,
+  });
+  assert.equal(witness[2], expected);
+  assert.equal(witness[2], fixture.expected.identityNullifier);
+});
+
+test("the identity nullifier is stable across credentials and wallets, and scoped to context", async () => {
+  // The three properties that make it useful, and the one that keeps it contained.
+  // Everything here shares one identitySecret, which is what the issuer controls.
+  const holderA = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8";
+  const holderB = "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc";
+  const otherContext = CONTEXT + 1n;
+
+  const read = async (
+    overrides: Partial<NormalizedCredential>,
+    contextId: bigint,
+  ): Promise<{ identity: bigint; replay: bigint }> => {
+    const { signed } = await signedFixture(overrides);
+    const witness = await calculateAndCheckWitness(
+      "age",
+      rawAgeInput(signed, { currentDate: CURRENT_DATE, minimumAge: 18, contextId }),
+    );
+    return { identity: witness[2] as bigint, replay: witness[1] as bigint };
+  };
+
+  const base = await read({ subject: holderA }, CONTEXT);
+  // Re-issued as a brand new credential instance: new random credentialId, same person.
+  const reissued = await read(
+    { subject: holderA, credentialId: fixture.credential.credentialId + 12345n },
+    CONTEXT,
+  );
+  const otherWallet = await read({ subject: holderB }, CONTEXT);
+  const elsewhere = await read({ subject: holderA }, otherContext);
+
+  assert.equal(base.identity, reissued.identity, "survives re-issuance");
+  assert.equal(base.identity, otherWallet.identity, "survives a change of wallet");
+  assert.notEqual(base.identity, elsewhere.identity, "does not cross contexts");
+
+  // And the replay nullifier keeps doing its own, different job: a new credential
+  // instance is a new replay nullifier even though the identity nullifier is the same.
+  assert.notEqual(base.replay, reissued.replay, "replay nullifier is per credential");
+});
+
 test("public signals appear in the documented order", async () => {
   // Witness layout is [1, ...outputs, ...publicInputs, ...private]. This is what
   // AletheiaVerifier decodes by index, so the order is pinned here and in
@@ -79,7 +132,8 @@ test("public signals appear in the documented order", async () => {
   const { signed } = await signedFixture();
   const params = { currentDate: CURRENT_DATE, minimumAge: 18, contextId: CONTEXT };
   const witness = await calculateAndCheckWitness("age", rawAgeInput(signed, params));
-  assert.deepEqual(witness.slice(2, 8), [
+  assert.deepEqual(witness.slice(3, 10), [
+    BigInt(SCHEMA_VERSION),
     signed.issuer.ax,
     signed.issuer.ay,
     BigInt(CURRENT_DATE),
@@ -87,6 +141,27 @@ test("public signals appear in the documented order", async () => {
     CONTEXT,
     BigInt(signed.credential.subject),
   ]);
+});
+
+test("the circuit pins schemaVersion to the version it was compiled for", async () => {
+  // schemaVersion is public so the contract can route on it. That is only safe because
+  // the prover cannot choose it: the circuit forces it to the compiled constant.
+  const { signed } = await signedFixture();
+  for (const declared of [1, 3, 0]) {
+    await assert.rejects(
+      () =>
+        calculateWitness(
+          "age",
+          rawAgeInput(signed, {
+            currentDate: CURRENT_DATE,
+            minimumAge: 18,
+            contextId: CONTEXT,
+            schemaVersion: declared,
+          }),
+        ),
+      `declaring schemaVersion ${declared} must be rejected`,
+    );
+  }
 });
 
 test("boundary: the claim holds on the birthday and fails the day before", async () => {
@@ -162,7 +237,7 @@ test("boundary: the year rollover case from docs/date-format.md", async () => {
 });
 
 test("tampering with any signed field breaks the proof", async () => {
-  // The signature covers all seven fields, so editing one after signing makes the
+  // The signature covers all eight fields, so editing one after signing makes the
   // in-circuit EdDSA check fail. This is what stops a self-asserted credential.
   const { privateKey } = await generateKeypair();
   const signed = await signCredential(privateKey, fixture.credential);
@@ -173,6 +248,9 @@ test("tampering with any signed field breaks the proof", async () => {
     ["expiryDate", { expiryDate: 20440314 }],
     ["issuedAt", { issuedAt: 20250101 }],
     ["credentialId", { credentialId: fixture.credential.credentialId + 1n }],
+    // Without this the holder could pick their own identityNullifier, which is the
+    // whole reason identitySecret is inside the signed message.
+    ["identitySecret", { identitySecret: fixture.credential.identitySecret + 1n }],
   ];
 
   for (const [label, patch] of tampering) {
