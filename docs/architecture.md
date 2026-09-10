@@ -116,6 +116,16 @@ regenerating a circuit can silently reorder signals and break contract decoding.
   enforces the forward-match during reverse resolution on-chain.
 - **No registrar, no subname minting, no ENS writes, no ENS state on-chain.** An
   address-only flow is first-class; nobody needs to own a name to use Aletheia.
+- **The ENS name is never stored — not on-chain, not in the subgraph.** The wallet
+  address is the sole stored anchor a proof binds to (`subject` on every `Verification`);
+  the ENS name is resolved **live at read/display time** and joined to a record's proof
+  status by that address. Forward (name → address) queries the subgraph by the resolved
+  address; reverse (address → name) labels a record for display. Indexing the name is
+  rejected for three reasons: the subgraph does no `eth_call` and so cannot resolve at
+  index time; ENS reverse records are mutable, so an indexed name would go stale
+  silently; and resolution is on mainnet while the subgraph indexes Sepolia, so a stored
+  name would cross chains for a value that is cheap to resolve live. Confirmed decision,
+  2026-09-10.
 - Rationale and the requirements for issuing subnames later: `docs/phase2-ens-subnames.md`.
 
 ## The Graph
