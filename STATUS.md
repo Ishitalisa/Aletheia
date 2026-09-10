@@ -38,7 +38,18 @@ reaching the `Issuer`, the unknown-issuer guard, and `ProfileRegistered`. Day 12
 done: the subgraph is deployed to Subgraph Studio on Sepolia (slug `aletheia`, version
 `v0.0.2`, deployment `QmNu6wYNr71…gpVEL`), synced with `hasIndexingErrors: false`, and the
 stage 11 `ClaimVerified` is queryable as a real `Verification` entity from the Studio
-endpoint. The next task is **Day 13**, the typed GraphQL query client.
+endpoint. Day 13 is now done: `packages/query` is a typed GraphQL read client — one
+`fetch`-based transport, strict decoders, five typed reads, every one returning
+`_meta.block.number` and `hasIndexingErrors` alongside its records — and
+`scripts/check.ts` ran it live against the deployed Studio endpoint, reading indexer
+block **11676205** (`hasIndexingErrors: false`) and the stage 11 `Verification`
+`0xd24a4fc1…928c3`, confirmed against transaction `0x195671d0…b92719` and the `mock-dev`
+issuer label, with the subject's derived `Profile.verifications` resolving back to the
+same record. Introspecting the live schema surfaced a genuine bug before the gate closed:
+graph-node's built-in `_meta.block.number` is `Int!` (a JSON number), unlike the
+subgraph's own `BigInt` fields (decimal strings), and `decode.ts` had assumed the latter
+for both. Fixed in the decoder, not worked around. No mocked `fetch` anywhere in the read
+path. The next task is **Day 14**, the five verification states.
 
 ## Build status
 
@@ -51,6 +62,7 @@ endpoint. The next task is **Day 13**, the typed GraphQL query client.
 | `packages/circuits` | **26 of 26 passing** |
 | `packages/contracts` | **46 passing** (Day 6 done; +1 for the leap-year-boundary sweep) |
 | `packages/subgraph` | **6 matchstick tests passing** (Day 11); `graph codegen`/`graph build` clean, no `eth_call`; deployed to Studio (Day 12), slug `aletheia` v0.0.2, synced clean |
+| `packages/query` | **27 of 27 passing** (Day 13 done); `scripts/check.ts` passes live against the deployed Studio endpoint |
 
 `packages/web` and `scripts` are named in `docs/architecture.md` and do not exist.
 `packages/subgraph` exists with its schema, manifest, four implemented event handlers and
@@ -214,7 +226,7 @@ path never collides with a record a previous run left behind.
 | 10 | Sepolia deployment | **closed** — v2 deployed, four addresses verified on Etherscan, `mock-dev` issuer registered and active, `docs/deployments.md` filled |
 | 11 | Real `ClaimVerified` event | **closed** — genuine age proof submitted on Sepolia (tx `0x195671d0…`), replay reverted on-chain with `VerificationAlreadyRecorded` (tx `0x8aaf3b5e…`) |
 | 12 | Subgraph | **closed** — schema, manifest, mappings and matchstick done (Days 10–11): 6 tests green, `graph codegen`/`graph build` clean, no `eth_call`; deployed to Studio (Day 12), slug `aletheia` v0.0.2, synced with no indexing errors, stage 11 `ClaimVerified` queryable as a real `Verification` |
-| 13 | GraphQL query layer | not started (next: Day 13) |
+| 13 | GraphQL query layer | **closed** — `packages/query` reads live from the Studio endpoint: `scripts/check.ts` returned indexer block 11676205, the stage 11 `Verification` matched against its transaction hash and `mock-dev` issuer label, and the derived `Profile.verifications` side; 27 unit tests green, no mocked `fetch` (next: Day 14) |
 | 14 | ENS resolution | not started |
 | — | **M1 end-to-end** | not reached; `scripts` runner does not exist |
 | 15 | Document extraction | not started; `docs/passport-extraction.md` written (untracked) |
@@ -227,19 +239,14 @@ path never collides with a record a previous run left behind.
 
 ## Working tree
 
-The schema v2 migration and the Sepolia deployment (Day 8) are committed. Uncommitted on
-top is the Day 9 work (the new `packages/contracts/scripts/submit-age-claim.ts`) and the
-Days 10–11 work: the new `packages/subgraph` — schema, manifest, extracted ABIs, the four
-implemented event handlers (`src/verifier.ts`, `src/registry.ts`, `src/profile.ts`), the
-matchstick tests (`tests/aletheia.test.ts`, `tests/utils.ts`), the Docker-backed test
-runner (`scripts/test.mjs`) and the graph-cli-generated `tests/.docker/Dockerfile` it
-depends on — the removal of the misplaced root-level `aletheia/` scaffold (commit
-`3abd85e`), the Day 12 subgraph deploy (no new source files — `docs/deployments.md` filled
-in with the Studio slug, version and query URL, and the `.env` query-endpoint variable
-updated), and these `STATUS.md` / `TODO.md` updates. (`pnpm-lock.yaml` carries the
-graph-cli / graph-ts / matchstick-as / assemblyscript additions plus an unrelated
-pre-existing change.) The subgraph's `generated/` and `build/` are gitignored, as are the
-Ignition deployment artifacts and all other build output.
+Everything through Day 12 — the schema v2 migration, the Sepolia deployment, the Day 9
+`submit-age-claim.ts` run, and the subgraph (schema, mappings, matchstick tests, the
+Docker-backed test runner, and the Day 12 Studio deploy) — is committed, most recently as
+`8b8016d`. Day 13 adds `packages/query` (transport, decoders, typed reads,
+`scripts/check.ts`) and the `pnpm-lock.yaml` importer entry it needs, committed alongside
+this file and `TODO.md`. `git status` is clean after that commit. The subgraph's
+`generated/` and `build/` remain gitignored, as are the Ignition deployment artifacts and
+all other build output.
 
 **Toolchain note (Day 11):** the subgraph's `@graphprotocol/graph-ts` was pinned down from
 `0.38.2` to `0.35.0`. matchstick 0.6.0 is the newest matchstick release and it compiles
