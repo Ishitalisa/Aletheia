@@ -53,8 +53,19 @@ path. Day 14 is now done: `packages/query` derives the **five verification state
 (`verified`, `stale`, `revoked`, `pending`, `not-found`) from a real read via the pure
 `deriveVerificationState`, and all five were reproduced against the live Studio endpoint
 with real artifacts — including an actual on-chain issuer revocation and re-activation for
-`revoked`, and a real submit-and-poll for `pending`. The next task is **Day 15**, ENS
-resolution.
+`revoked`, and a real submit-and-poll for `pending`. Day 15 is now done: `packages/ens` is
+a read-only ENS resolver — `createEnsResolver` with `resolveAddress` (forward, name →
+address) and `resolveName` (reverse, address → name), both through the ENS Universal
+Resolver proxy `0xeEeE…EeEe` over `MAINNET_RPC_URL` using viem 2.56, with no writes, no
+registrar and no injectable transport. `scripts/check.ts` ran live against real mainnet
+ENS and closed all three exit criteria: `vitalik.eth` resolved to
+`0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045` (never hardcoded, never special-cased), that
+address reverse-resolved to `vitalik.eth` and forward round-tripped back (ENSv2 enforces
+the forward-match on-chain), a nonexistent name returned `null` rather than throwing, and a
+keccak-derived address with no reverse record returned `null` as a first-class outcome. The
+name is resolved live and stored nowhere — not on-chain, not in the subgraph
+(`docs/architecture.md`, ENS section). The next task is **Day 16**, the M1 end-to-end
+runner.
 
 ## Build status
 
@@ -68,10 +79,12 @@ resolution.
 | `packages/contracts` | **46 passing** (Day 6 done; +1 for the leap-year-boundary sweep) |
 | `packages/subgraph` | **6 matchstick tests passing** (Day 11); `graph codegen`/`graph build` clean, no `eth_call`; deployed to Studio (Day 12), slug `aletheia` v0.0.2, synced clean |
 | `packages/query` | **40 of 40 passing** (Day 14 done, +13 for the five-state derivation); `scripts/check.ts` and `scripts/states.ts` pass live against the deployed Studio endpoint |
+| `packages/ens` | **11 of 11 passing** (Day 15 done); pure seams unit-tested (env validation, UTS-46 name normalisation, address checksumming); `scripts/check.ts` passes live against real mainnet ENS through the Universal Resolver |
 
-`packages/web` and `scripts` are named in `docs/architecture.md` and do not exist.
-`packages/subgraph` exists with its schema, manifest, four implemented event handlers and
-matchstick coverage (Days 10–11). The subgraph is not yet deployed (Day 12).
+`packages/web` and `scripts` are named in `docs/architecture.md` and do not exist yet
+(`packages/web` is Day 20; the `scripts` M1 runner is Day 16). `packages/subgraph` exists
+with its schema, manifest, four implemented event handlers and matchstick coverage
+(Days 10–11), and is deployed to Studio (Day 12, slug `aletheia` v0.0.2, synced clean).
 
 ## The schema v2 migration
 
@@ -267,7 +280,7 @@ revoke/restore tool.
 | 11 | Real `ClaimVerified` event | **closed** — genuine age proof submitted on Sepolia (tx `0x195671d0…`), replay reverted on-chain with `VerificationAlreadyRecorded` (tx `0x8aaf3b5e…`) |
 | 12 | Subgraph | **closed** — schema, manifest, mappings and matchstick done (Days 10–11): 6 tests green, `graph codegen`/`graph build` clean, no `eth_call`; deployed to Studio (Day 12), slug `aletheia` v0.0.2, synced with no indexing errors, stage 11 `ClaimVerified` queryable as a real `Verification` |
 | 13 | GraphQL query layer | **closed** — `packages/query` reads live from the Studio endpoint: `scripts/check.ts` returned indexer block 11676205, the stage 11 `Verification` matched against its transaction hash and `mock-dev` issuer label, and the derived `Profile.verifications` side; the **five verification states** are now derived by the pure `deriveVerificationState` and all five reproduced from real endpoint data (Day 14) — a real on-chain revoke/restore for `revoked`, a real submit-and-poll for `pending`; 40 unit tests green, no mocked `fetch` (next: Day 15, ENS) |
-| 14 | ENS resolution | not started |
+| 14 | ENS resolution | **closed** — `packages/ens` resolves forward and reverse through the Universal Resolver proxy over mainnet, read-only, viem 2.56: `scripts/check.ts` ran live and `vitalik.eth` → `0xd8dA…6045` with the reverse round-trip, a nonexistent name returned not-found without throwing, and a keccak-derived address with no reverse record returned null; 11 unit tests green, the name resolved live and stored nowhere |
 | — | **M1 end-to-end** | not reached; `scripts` runner does not exist |
 | 15 | Document extraction | not started; `docs/passport-extraction.md` written (untracked) |
 | 16 | Frontend (age only) | not started; package does not exist |
@@ -288,8 +301,12 @@ Docker-backed test runner, and the Day 12 Studio deploy) — is committed, most 
 exports), the `scripts/states.ts` read/derive gate, the on-chain
 `packages/contracts/scripts/set-issuer-active.ts` and `reproduce-pending.ts`, the
 `@aletheia/query` devDependency on `packages/contracts` with its `pnpm-lock.yaml` entry,
-and the `docs/security.md` freshness refinement, committed alongside this file and
-`TODO.md`. The subgraph's `generated/` and `build/`, `packages/query/dist/`, the Ignition
+and the `docs/security.md` freshness refinement, committed as `53f1f36`. Day 15 adds
+`packages/ens` — `src/endpoint.ts` (the `MAINNET_RPC_URL` seam), `src/errors.ts`,
+`src/resolver.ts` (the forward/reverse resolver), `src/index.ts`, the two unit-test files,
+`scripts/check.ts` (the live gate), the package manifest and tsconfigs — plus the new
+`viem` workspace entry in `pnpm-lock.yaml`, committed alongside this file and `TODO.md`.
+The subgraph's `generated/` and `build/`, the `dist/` of each package, the Ignition
 deployment artifacts and all other build output remain gitignored.
 
 **Toolchain note (Day 11):** the subgraph's `@graphprotocol/graph-ts` was pinned down from
