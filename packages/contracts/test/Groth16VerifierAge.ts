@@ -26,7 +26,17 @@ const REQUEST = {
 } as const;
 
 /** Public signals as the fixed-size tuple the generated verifier expects. */
-type Signals = readonly [bigint, bigint, bigint, bigint, bigint, bigint, bigint];
+type Signals = readonly [
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+];
 
 function asSignals(values: readonly bigint[]): Signals {
   assert.equal(values.length, AGE_PUBLIC_SIGNALS.length);

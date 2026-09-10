@@ -85,8 +85,23 @@ export interface ClaimOptions {
 export interface AgeClaimBundle {
   signed: SignedCredential;
   calldata: SolidityCalldata;
-  /** The fixed-size tuple the generated verifier and AletheiaVerifier expect. */
-  signals: readonly [bigint, bigint, bigint, bigint, bigint, bigint, bigint];
+  /**
+   * The fixed-size tuple the generated verifier and AletheiaVerifier expect, in the
+   * nine-signal v2 order:
+   * `[nullifier, identityNullifier, schemaVersion, issuerAx, issuerAy, currentDate,
+   * minimumAge, contextId, subject]`.
+   */
+  signals: readonly [
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+  ];
   publicSignals: string[];
 }
 
