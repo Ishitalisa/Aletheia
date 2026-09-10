@@ -1,5 +1,6 @@
 export {
   SCHEMA_VERSION,
+  MAX_SCHEMA_VERSION,
   CLAIM_TYPE,
   MIN_DATE_YYYYMMDD,
   MAX_DATE_YYYYMMDD,
@@ -58,7 +59,9 @@ export {
 export {
   claimNullifier,
   credentialMessageHash,
+  identityNullifier,
   poseidonHash,
+  type IdentityNullifierInput,
   type NullifierInput,
 } from "./hash.ts";
 

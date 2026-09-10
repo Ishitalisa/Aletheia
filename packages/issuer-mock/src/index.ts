@@ -13,6 +13,12 @@ export {
 } from "./keys.ts";
 
 export {
+  deriveIdentitySecret,
+  randomIdentitySalt,
+  type IdentitySecretInput,
+} from "./identity.ts";
+
+export {
   createMockIssuer,
   isSignedBy,
   signCredential,

@@ -4,8 +4,17 @@
  * it requires a new schema version, recompiled circuits, and redeployed verifiers.
  */
 
-/** Version of the normalized credential and of the signed-message layout. */
-export const SCHEMA_VERSION = 1;
+/**
+ * Version of the normalized credential and of the signed-message layout.
+ *
+ * v2 added the private `identitySecret` field and made the version itself a public
+ * signal. v1 is retired: its circuits produced seven public signals and no verifier for
+ * them is deployed. See docs/credential-schema.md.
+ */
+export const SCHEMA_VERSION = 2;
+
+/** Upper bound on `schemaVersion`, so it fits the `uint16` the contract routes on. */
+export const MAX_SCHEMA_VERSION = 65535;
 
 /**
  * Claim type ids. Bound into the nullifier inside the circuit and used on-chain to

@@ -39,10 +39,11 @@ export async function poseidonHash(
  * `schemaVersion`, which is itself the first input:
  *
  *   Poseidon([schemaVersion, credentialId, subject, dateOfBirth, nationality,
- *             expiryDate, issuedAt])
+ *             expiryDate, issuedAt, identitySecret])
  *
  * Binding `subject` into the signed message is what stops a credential being used from
- * another wallet.
+ * another wallet. `identitySecret` is signed rather than holder-supplied so that the
+ * issuer, not the prover, decides which credentials share one.
  */
 export async function credentialMessageHash(
   credential: NormalizedCredential,
@@ -56,6 +57,7 @@ export async function credentialMessageHash(
     BigInt(credential.nationality),
     BigInt(credential.expiryDate),
     BigInt(credential.issuedAt),
+    credential.identitySecret,
   ]);
 }
 
@@ -90,4 +92,38 @@ export async function claimNullifier(input: NullifierInput): Promise<bigint> {
     input.contextId,
     addressToField(input.subject),
   ]);
+}
+
+export interface IdentityNullifierInput {
+  /** Private, from the credential. Issuer-derived and document-bound. */
+  identitySecret: bigint;
+  /** Verifier-chosen scope, reduced into the field by `hashToField`. */
+  contextId: bigint;
+}
+
+/**
+ * The second public nullifier every claim circuit outputs:
+ *
+ *   Poseidon([identitySecret, contextId])
+ *
+ * Note what is *not* in it. No `credentialId`, so it survives re-issuance; no `subject`,
+ * so it survives a change of wallet; no `claimTypeId`, so it is the same value across
+ * every claim the holder proves to one verifier.
+ *
+ * What it establishes, exactly: two proofs carrying the same value were built from
+ * credentials the issuer gave the same `identitySecret`, within the same `contextId`.
+ * Different contexts yield unrelated values, so it cannot correlate a holder across
+ * verifiers, and Poseidon's preimage resistance keeps `identitySecret` unrecoverable
+ * from it.
+ *
+ * What it does not establish — see docs/trust-model.md, and do not weaken this wording:
+ * it is not proof of a distinct human, and it is not Sybil resistance. `identitySecret`
+ * is issuer- and document-bound, so it inherits every limit of the issuer that derived
+ * it. Under the Phase 1 mock issuer, which verifies nothing and runs on the holder's own
+ * machine, it establishes no real-world uniqueness whatsoever.
+ */
+export async function identityNullifier(input: IdentityNullifierInput): Promise<bigint> {
+  assertFieldElement(input.identitySecret, "identitySecret");
+  assertFieldElement(input.contextId, "contextId");
+  return poseidonHash([input.identitySecret, input.contextId]);
 }

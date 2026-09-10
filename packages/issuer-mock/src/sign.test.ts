@@ -101,10 +101,13 @@ test("signing refuses a malformed credential", async () => {
 test("verification rejects a malformed credential outright", async () => {
   const { privateKey } = await generateKeypair();
   const signed = await signCredential(privateKey, credential());
+  // schemaVersion 1 is retired and unsupported, so the credential cannot even be hashed:
+  // verifySignedCredential must reject it via the malformed-credential path, not by
+  // reaching the signature check. (The signed value is 2; see docs/credential-schema.md.)
   assert.equal(
     await verifySignedCredential({
       ...signed,
-      credential: { ...signed.credential, schemaVersion: 2 },
+      credential: { ...signed.credential, schemaVersion: 1 },
     }),
     false,
   );

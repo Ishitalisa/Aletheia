@@ -18,6 +18,7 @@ interface FixtureFile {
     nationality: number;
     expiryDate: number;
     issuedAt: number;
+    identitySecret: string;
   };
   expected: {
     messageHash: string;
@@ -25,6 +26,7 @@ interface FixtureFile {
     contextId: string;
     nullifierAge: string;
     nullifierNationality: string;
+    identityNullifier: string;
   };
 }
 
@@ -36,11 +38,12 @@ export interface CredentialFixture {
     contextId: bigint;
     nullifierAge: bigint;
     nullifierNationality: bigint;
+    identityNullifier: bigint;
   };
 }
 
 export function loadCredentialFixture(): CredentialFixture {
-  const path = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures", "credential-v1.json");
+  const path = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures", "credential-v2.json");
   const file = JSON.parse(readFileSync(path, "utf8")) as FixtureFile;
   return {
     credential: {
@@ -51,6 +54,7 @@ export function loadCredentialFixture(): CredentialFixture {
       nationality: file.credential.nationality,
       expiryDate: file.credential.expiryDate,
       issuedAt: file.credential.issuedAt,
+      identitySecret: BigInt(file.credential.identitySecret),
     },
     expected: {
       messageHash: BigInt(file.expected.messageHash),
@@ -58,6 +62,7 @@ export function loadCredentialFixture(): CredentialFixture {
       contextId: BigInt(file.expected.contextId),
       nullifierAge: BigInt(file.expected.nullifierAge),
       nullifierNationality: BigInt(file.expected.nullifierNationality),
+      identityNullifier: BigInt(file.expected.identityNullifier),
     },
   };
 }
