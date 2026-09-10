@@ -25,7 +25,9 @@ explicit leap-year-boundary sweep. Day 7 is done:
 gitignored keystore, refuses any keystore not labelled `mock-dev`, reads the registry
 address from the Ignition deployment for the connected chain, registers the issuer as
 `mock-dev`, reads it back active, and refuses a second run rather than double-registering.
-The next task is **Day 9**, a real `ClaimVerified` event submitted on-chain.
+Day 9 is done: a genuine age proof was submitted on Sepolia and the identical proof, on
+resubmission, reverted on-chain with `VerificationAlreadyRecorded`. The next task is
+**Day 10**, the subgraph schema and manifest.
 
 ## Build status
 
@@ -160,6 +162,28 @@ resolved via `hardhat.config.ts` loading `.env` into the environment — matchin
 `preflight.ts`. `.env.example` and the config comments were updated to remove the earlier
 keystore contradiction (`myTasks.md` item 2).
 
+## The first real `ClaimVerified` event (Day 9)
+
+`packages/contracts/scripts/submit-age-claim.ts` ran the whole pipeline against Sepolia
+for the first time: a credential the `mock-dev` issuer actually signed, bound to the
+submitting wallet; a real Groth16 proof over `age.circom`; a real `submitAgeClaim`
+transaction; and the emitted event read back from the mined receipt.
+
+| | Transaction | Block | Result |
+|---|---|---|---|
+| Success | `0x195671d0f3d105a5401656b7ad35d0cd6d94190fd17061dd6d70833524b92719` | 11674993 | `ClaimVerified` emitted (gas used 312165) |
+| Replay | `0x8aaf3b5ee12af4ad7386265578efae83e374905c5cc4c11b3682373889d1088c` | 11674994 | reverted on-chain, `VerificationAlreadyRecorded` |
+
+The emitted event carried `verificationId`
+`0xd24a4fc1052a1b7753e1fffd825666a3946fd2ee5c88e8f472fb743fab6928c3`, `claimType 1`,
+`issuerId 0xfee4bdf6…be2588` (the `mock-dev` issuer), `claimParameter 18`,
+`credentialValidOn 20260910`, and both nullifiers. The replay is a **real failed
+transaction**, not a local `to.be.reverted`: gas was supplied explicitly so the node
+broadcast and mined it (`status reverted`) rather than the RPC rejecting it during
+estimation, and the custom error name was decoded from a live `eth_call` against the same
+state. `credentialId` and `identitySecret` are freshly random per run, so the success
+path never collides with a record a previous run left behind.
+
 ## Stage gates
 
 | # | Stage | State |
@@ -175,8 +199,8 @@ keystore contradiction (`myTasks.md` item 2).
 | 8 | Solidity verifier | **closed under v2** — re-exported to `uint[9]`, 7 tests green, committed `.sol` asserted against the current proving key |
 | 9 | Contract tests | **closed under v2** — `AletheiaVerifier` migrated to nine signals, 46 passing; full negative suite complete (Day 5), each failure mode named, reserve-before-verify ordering asserted; `DateLib` proven against the TS codec on every day 1970–2100 (Day 6) |
 | 10 | Sepolia deployment | **closed** — v2 deployed, four addresses verified on Etherscan, `mock-dev` issuer registered and active, `docs/deployments.md` filled |
-| 11 | Real `ClaimVerified` event | not started (next: Day 9) |
-| 12 | Subgraph | not started; package does not exist |
+| 11 | Real `ClaimVerified` event | **closed** — genuine age proof submitted on Sepolia (tx `0x195671d0…`), replay reverted on-chain with `VerificationAlreadyRecorded` (tx `0x8aaf3b5e…`) |
+| 12 | Subgraph | not started; package does not exist (next: Day 10) |
 | 13 | GraphQL query layer | not started |
 | 14 | ENS resolution | not started |
 | — | **M1 end-to-end** | not reached; `scripts` runner does not exist |
@@ -190,7 +214,8 @@ keystore contradiction (`myTasks.md` item 2).
 
 ## Working tree
 
-The schema v2 migration was committed as reviewable per-area commits. Uncommitted on top,
-from the Sepolia deployment (Day 8): `docs/deployments.md`, `STATUS.md`, `myTasks.md`,
-`.env.example` and `packages/contracts/hardhat.config.ts` (the deployer-key location
-decision). Ignition deployment artifacts and all build output remain gitignored.
+The schema v2 migration and the Sepolia deployment (Day 8) are committed. Uncommitted on
+top is the Day 9 work: the new `packages/contracts/scripts/submit-age-claim.ts` and the
+`STATUS.md` / `TODO.md` updates recording the two transaction hashes. (`pnpm-lock.yaml`
+carries an unrelated pre-existing change.) Ignition deployment artifacts and all build
+output remain gitignored.
