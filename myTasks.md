@@ -98,6 +98,12 @@ never writes to ENS and never creates ENS state.
   address with no reverse record is a normal case — both of which can be built from any
   address without a second nominated name.
 
+  **Confirmed association model (2026-09-10):** ENS is resolved **live at read time**; the
+  wallet address is the stored anchor a proof binds to. The ENS name is never indexed in
+  the subgraph — forward resolution queries the subgraph by the resolved address, reverse
+  resolution labels a record for display. Full rationale in `docs/architecture.md`, ENS
+  section. Day 15 builds the resolver; Day 21 renders the name against a record's status.
+
 ---
 
 
