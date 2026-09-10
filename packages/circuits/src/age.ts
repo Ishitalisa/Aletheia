@@ -7,14 +7,22 @@
  * has to index into an array of decimal strings and hope.
  */
 
-import { fieldToAddress, type SignedCredential } from "@aletheia/credential";
+import { SCHEMA_VERSION, fieldToAddress, type SignedCredential } from "@aletheia/credential";
 
 import { AGE_CLAIM, ageClaimInput, type AgeClaimRequest } from "./inputs.ts";
 import { prove, verify, type Groth16Proof, type ProofResult } from "./prove.ts";
 
-/** Groth16 public signals: circuit outputs first, then public inputs in order. */
+/**
+ * Groth16 public signals: circuit outputs first, then public inputs in order.
+ *
+ * This is the v2 nine-signal layout every claim type shares. `minimumAge` sits in the
+ * generic claim-parameter slot, so nationality and expiry decode identically with a
+ * different name for index 6.
+ */
 export const AGE_PUBLIC_SIGNALS = [
   "nullifier",
+  "identityNullifier",
+  "schemaVersion",
   "issuerAx",
   "issuerAy",
   "currentDate",
@@ -25,6 +33,8 @@ export const AGE_PUBLIC_SIGNALS = [
 
 export interface AgePublicSignals {
   nullifier: bigint;
+  identityNullifier: bigint;
+  schemaVersion: number;
   issuerAx: bigint;
   issuerAy: bigint;
   currentDate: number;
@@ -44,6 +54,8 @@ export function decodeAgePublicSignals(signals: readonly string[]): AgePublicSig
 
   return {
     nullifier: at("nullifier"),
+    identityNullifier: at("identityNullifier"),
+    schemaVersion: Number(at("schemaVersion")),
     issuerAx: at("issuerAx"),
     issuerAy: at("issuerAy"),
     currentDate: Number(at("currentDate")),
@@ -69,6 +81,13 @@ export async function proveAgeClaim(
   // mismatch here would mean the input builder and the circuit disagree.
   if (decoded.minimumAge !== request.minimumAge || decoded.currentDate !== request.currentDate) {
     throw new Error("public signals do not match the requested claim");
+  }
+  // The circuit pins this, so a mismatch means the compiled artifacts are from a
+  // different schema version than this package expects.
+  if (decoded.schemaVersion !== SCHEMA_VERSION) {
+    throw new Error(
+      `proof declares schemaVersion ${decoded.schemaVersion}, expected ${SCHEMA_VERSION}`,
+    );
   }
   return { ...result, decoded };
 }

@@ -63,11 +63,15 @@ export function ageClaimInput(
     nationality: signed.credential.nationality,
     expiryDate: signed.credential.expiryDate,
     issuedAt: signed.credential.issuedAt,
+    identitySecret: signed.credential.identitySecret,
     // private: the issuer signature
     sigR8x: signed.signature.r8x,
     sigR8y: signed.signature.r8y,
     sigS: signed.signature.s,
-    // public
+    // public. schemaVersion comes from the credential rather than the request: the
+    // circuit pins it to the version it was compiled for, so a mismatch is an
+    // unsatisfiable witness rather than a silently wrong proof.
+    schemaVersion: signed.credential.schemaVersion,
     issuerAx: signed.issuer.ax,
     issuerAy: signed.issuer.ay,
     currentDate: request.currentDate,
