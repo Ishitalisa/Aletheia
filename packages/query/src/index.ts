@@ -29,6 +29,23 @@ export type {
   VerificationIssuer,
 } from "./types.ts";
 
+// The five verification states: the read layer's actual product. `deriveVerificationState`
+// is pure and is the unit-tested seam; the states it names are only ever produced from
+// real endpoint data (scripts/states.ts).
+export {
+  deriveVerificationState,
+  type DeriveStateInput,
+  type FreshnessPolicy,
+  type NotFoundState,
+  type PendingCause,
+  type PendingState,
+  type RevokedState,
+  type StaleState,
+  type VerificationState,
+  type VerificationStatus,
+  type VerifiedState,
+} from "./state.ts";
+
 // The decoders are exported because they are the honest seam of this package: pure,
 // total, and the only part a test can exercise without the network. Nothing downstream
 // needs them to read the subgraph.

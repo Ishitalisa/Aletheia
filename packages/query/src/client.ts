@@ -30,6 +30,11 @@ import {
   RECENT_VERIFICATIONS_QUERY,
   VERIFICATION_QUERY,
 } from "./queries.ts";
+import {
+  deriveVerificationState,
+  type FreshnessPolicy,
+  type VerificationState,
+} from "./state.ts";
 import type {
   IndexingMeta,
   Issuer,
@@ -60,6 +65,19 @@ export interface PageOptions {
   first?: number;
   /** Records to skip. Defaults to 0. */
   skip?: number;
+}
+
+export interface VerificationStateOptions {
+  /** The verifier's freshness policy. Required: a freshness window is never defaulted. */
+  policy: FreshnessPolicy;
+  /**
+   * The block a just-submitted transaction was mined in, when waiting on a specific
+   * record. Makes an absent record read `pending` rather than `not-found` while the
+   * indexer catches up. Omit when not waiting on anything.
+   */
+  expectedBlock?: bigint;
+  /** "Now" in Unix seconds. Defaults to this machine's clock. */
+  nowSeconds?: number;
 }
 
 function assertPage(options: PageOptions | undefined): { first: number; skip: number } {
@@ -117,6 +135,20 @@ export interface QueryClient {
 
   /** One verification by `verificationId`. Null when no such record is indexed. */
   verification(verificationId: string): Promise<QueryResult<Verification | null>>;
+
+  /**
+   * One verification by id, classified into one of the five states in a single round trip.
+   *
+   * This is the read layer's product: a caller never has to hold a record and the
+   * indexer's meta side by side and reason about the gap themselves. The query is live;
+   * the classification is the pure `deriveVerificationState`. `now` defaults to this
+   * machine's clock — the one impure part, and the reason the classification is factored
+   * out as a pure function that a test can pin a clock into.
+   */
+  verificationState(
+    verificationId: string,
+    options: VerificationStateOptions,
+  ): Promise<VerificationState>;
 
   /** Recent verifications across every subject, newest first. */
   recentVerifications(options?: PageOptions): Promise<QueryResult<Verification[]>>;
@@ -233,6 +265,20 @@ export function createQueryClient(options: QueryClientOptions = {}): QueryClient
       return read(VERIFICATION_QUERY, { id }, (data) =>
         decodeNullable(data["verification"], "verification", decodeVerification),
       );
+    },
+
+    async verificationState(
+      verificationId: string,
+      options: VerificationStateOptions,
+    ): Promise<VerificationState> {
+      const result = await this.verification(verificationId);
+      return deriveVerificationState({
+        verification: result.data,
+        meta: result.meta,
+        policy: options.policy,
+        nowSeconds: options.nowSeconds ?? Math.floor(Date.now() / 1000),
+        ...(options.expectedBlock !== undefined ? { expectedBlock: options.expectedBlock } : {}),
+      });
     },
 
     async recentVerifications(options?: PageOptions): Promise<QueryResult<Verification[]>> {
