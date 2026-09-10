@@ -1,0 +1,337 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      { "name": "initialOwner", "type": "address", "internalType": "address" },
+      {
+        "name": "registry",
+        "type": "address",
+        "internalType": "contract AletheiaIssuerRegistry"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "name": "ClaimParameterOutOfRange",
+    "type": "error",
+    "inputs": [
+      { "name": "parameter", "type": "uint256", "internalType": "uint256" },
+      { "name": "maximum", "type": "uint256", "internalType": "uint256" }
+    ]
+  },
+  {
+    "name": "DateNotCurrent",
+    "type": "error",
+    "inputs": [
+      { "name": "submitted", "type": "uint32", "internalType": "uint32" },
+      { "name": "today", "type": "uint32", "internalType": "uint32" }
+    ]
+  },
+  { "name": "InvalidProof", "type": "error", "inputs": [] },
+  { "name": "InvalidVerifierAddress", "type": "error", "inputs": [] },
+  {
+    "name": "NoVerifierForClaim",
+    "type": "error",
+    "inputs": [
+      { "name": "claimType", "type": "uint8", "internalType": "uint8" }
+    ]
+  },
+  {
+    "name": "OwnableInvalidOwner",
+    "type": "error",
+    "inputs": [
+      { "name": "owner", "type": "address", "internalType": "address" }
+    ]
+  },
+  {
+    "name": "OwnableUnauthorizedAccount",
+    "type": "error",
+    "inputs": [
+      { "name": "account", "type": "address", "internalType": "address" }
+    ]
+  },
+  {
+    "name": "SchemaVersionNotSupported",
+    "type": "error",
+    "inputs": [
+      { "name": "submitted", "type": "uint256", "internalType": "uint256" },
+      { "name": "supported", "type": "uint16", "internalType": "uint16" }
+    ]
+  },
+  {
+    "name": "SubjectIsNotSender",
+    "type": "error",
+    "inputs": [
+      { "name": "subject", "type": "address", "internalType": "address" },
+      { "name": "sender", "type": "address", "internalType": "address" }
+    ]
+  },
+  {
+    "name": "VerificationAlreadyRecorded",
+    "type": "error",
+    "inputs": [
+      { "name": "verificationId", "type": "bytes32", "internalType": "bytes32" }
+    ]
+  },
+  {
+    "name": "ClaimVerified",
+    "type": "event",
+    "inputs": [
+      {
+        "name": "verificationId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "subject",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "claimType",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "issuerId",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "claimParameter",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "credentialValidOn",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
+      },
+      {
+        "name": "contextId",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "nullifier",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "identityNullifier",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "verifiedAt",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "name": "ClaimVerifierSet",
+    "type": "event",
+    "inputs": [
+      {
+        "name": "claimType",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "verifier",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "name": "OwnershipTransferStarted",
+    "type": "event",
+    "inputs": [
+      {
+        "name": "previousOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "newOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "name": "OwnershipTransferred",
+    "type": "event",
+    "inputs": [
+      {
+        "name": "previousOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "newOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "name": "CLAIM_TYPE_AGE",
+    "type": "function",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint8", "internalType": "uint8" }],
+    "stateMutability": "view"
+  },
+  {
+    "name": "MAX_MINIMUM_AGE",
+    "type": "function",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "name": "SUPPORTED_SCHEMA_VERSION",
+    "type": "function",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint16", "internalType": "uint16" }],
+    "stateMutability": "view"
+  },
+  {
+    "name": "acceptOwnership",
+    "type": "function",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "name": "claimVerifier",
+    "type": "function",
+    "inputs": [
+      { "name": "claimType", "type": "uint8", "internalType": "uint8" }
+    ],
+    "outputs": [
+      { "name": "verifier", "type": "address", "internalType": "address" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "name": "issuerRegistry",
+    "type": "function",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract AletheiaIssuerRegistry"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "name": "owner",
+    "type": "function",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "stateMutability": "view"
+  },
+  {
+    "name": "pendingOwner",
+    "type": "function",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "stateMutability": "view"
+  },
+  {
+    "name": "renounceOwnership",
+    "type": "function",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "name": "setClaimVerifier",
+    "type": "function",
+    "inputs": [
+      { "name": "claimType", "type": "uint8", "internalType": "uint8" },
+      { "name": "verifier", "type": "address", "internalType": "address" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "name": "submitAgeClaim",
+    "type": "function",
+    "inputs": [
+      { "name": "a", "type": "uint256[2]", "internalType": "uint256[2]" },
+      { "name": "b", "type": "uint256[2][2]", "internalType": "uint256[2][2]" },
+      { "name": "c", "type": "uint256[2]", "internalType": "uint256[2]" },
+      {
+        "name": "publicSignals",
+        "type": "uint256[9]",
+        "internalType": "uint256[9]"
+      }
+    ],
+    "outputs": [
+      { "name": "verificationId", "type": "bytes32", "internalType": "bytes32" }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "name": "today",
+    "type": "function",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint32", "internalType": "uint32" }],
+    "stateMutability": "view"
+  },
+  {
+    "name": "transferOwnership",
+    "type": "function",
+    "inputs": [
+      { "name": "newOwner", "type": "address", "internalType": "address" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "name": "verificationIdFor",
+    "type": "function",
+    "inputs": [
+      { "name": "claimType", "type": "uint8", "internalType": "uint8" },
+      { "name": "contextId", "type": "uint256", "internalType": "uint256" },
+      { "name": "nullifier", "type": "uint256", "internalType": "uint256" }
+    ],
+    "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+    "stateMutability": "pure"
+  },
+  {
+    "name": "verificationUsed",
+    "type": "function",
+    "inputs": [
+      { "name": "verificationId", "type": "bytes32", "internalType": "bytes32" }
+    ],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+    "stateMutability": "view"
+  }
+]

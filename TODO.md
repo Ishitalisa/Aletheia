@@ -155,14 +155,15 @@ funds.
 
 Needs `myTasks.md` items 1, 2 and 3 done first.
 
-- [ ] Resolve the deployer-key contradiction recorded in `myTasks.md` item 2 before
-      spending anything.
-- [ ] Run `preflight.ts`, then deploy. The existing v1 deployment is dead — decide
+- [x] Resolve the deployer-key contradiction recorded in `myTasks.md` item 2 before
+      spending anything. Resolved: key lives in root `.env`.
+- [x] Run `preflight.ts`, then deploy. The existing v1 deployment is dead — decide
       whether to wipe the Ignition deployment directory or deploy under a new deployment
-      id, and whether the retired v1 addresses are recorded or dropped.
-- [ ] Register the `mock-dev` issuer with day 7's script.
-- [ ] Verify all four contracts on Etherscan.
-- [ ] Fill in `docs/deployments.md`: addresses, deploy blocks, Etherscan links, the
+      id, and whether the retired v1 addresses are recorded or dropped. Wiped the stale
+      `chain-11155111` state and redeployed fresh; v1 addresses dropped.
+- [x] Register the `mock-dev` issuer with day 7's script.
+- [x] Verify all four contracts on Etherscan.
+- [x] Fill in `docs/deployments.md`: addresses, deploy blocks, Etherscan links, the
       registered `issuerId` and public key. Placeholders are never written there.
 
 **Exit criteria** — four verified addresses on Etherscan, an issuer reading back active

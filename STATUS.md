@@ -14,19 +14,18 @@ and committed across `packages/credential`, `packages/circuits`, `packages/contr
 `packages/issuer-mock` and the normative documents. The full workspace test run is green
 and `pnpm -r run typecheck` is green. The nine-signal AgeClaim layout is asserted to agree
 across `docs/public-signals.md`, `AGE_PUBLIC_SIGNALS`, the generated verifier and
-`AletheiaVerifier` by `packages/contracts/test/PublicSignalsLayout.ts`. The Sepolia
-deployment that was already executed is a v1 deployment that v2 makes obsolete; it must be
-redeployed. Nothing downstream of the contracts — subgraph, web frontend, end-to-end
-runner — exists yet. Day 6 is done: `DateLib.toYyyymmdd` is compared directly against the
-TypeScript codec on every day from 1970-01-01 to 2100-12-31 (~47,800 samples) with zero
-divergence, plus an explicit leap-year-boundary sweep. Day 7 is done:
+`AletheiaVerifier` by `packages/contracts/test/PublicSignalsLayout.ts`. The v2 contracts
+are now **deployed to Sepolia (Day 8 done)**: four fresh verified addresses, the retired
+v1 deployment dropped, and the `mock-dev` issuer registered and reading back active.
+Nothing downstream of the contracts — subgraph, web frontend, end-to-end runner — exists
+yet. Day 6 is done: `DateLib.toYyyymmdd` is compared directly against the TypeScript codec
+on every day from 1970-01-01 to 2100-12-31 (~47,800 samples) with zero divergence, plus an
+explicit leap-year-boundary sweep. Day 7 is done:
 `packages/contracts/scripts/register-issuer.ts` reads the mock issuer key from the
 gitignored keystore, refuses any keystore not labelled `mock-dev`, reads the registry
 address from the Ignition deployment for the connected chain, registers the issuer as
-`mock-dev`, reads it back active, and refuses a second run rather than double-registering
-— all demonstrated end to end against a standalone local Hardhat node. The next task is
-**Day 8**, deploying v2 to Sepolia (blocked on `myTasks.md` items 1–3, in particular the
-deployer-key location contradiction in item 2).
+`mock-dev`, reads it back active, and refuses a second run rather than double-registering.
+The next task is **Day 9**, a real `ClaimVerified` event submitted on-chain.
 
 ## Build status
 
@@ -133,35 +132,33 @@ v2, recorded in `packages/circuits/constraints.lock.json`.
 
 ## The Sepolia deployment
 
-A real deployment was executed and is recorded in untracked Ignition artifacts under
-`packages/contracts/ignition/deployments/chain-11155111/`. All four contracts deployed and
-the `setClaimVerifier(1, ...)` call confirmed in block 11668184:
+The **v2** contracts are live on Sepolia, deployed 2026-09-10 by
+`0xA66f7fc3F125b06a5fd4f107D31a400103866cAe`. Full record in `docs/deployments.md`:
 
-| Contract | Address |
-|---|---|
-| `AletheiaIssuerRegistry` | `0x51623fDD54218C70241d85b8e0653b2c751BF087` |
-| `Groth16VerifierAge` | `0x96888b2882325a3482A5f64324776A42b68c66fb` |
-| `AletheiaVerifier` | `0x899DC043C2a7de25C196ba4C9581f6F924EC44bf` |
-| `AletheiaProfile` | `0x906c2D2081dc60f3DC35bF6e4DDB45e9eD96EA6A` |
+| Contract | Address | Deploy block |
+|---|---|---|
+| `AletheiaIssuerRegistry` | `0xC3F1ee25b47BbFD25B359B2301ABbDF27d987286` | 11674698 |
+| `Groth16VerifierAge` | `0x369b25B54a7829dE4343eA3625f0FC7D8A2D6eb7` | 11674698 |
+| `AletheiaVerifier` | `0x110BB3af042ecbeA118d399e300a4358DC9b993c` | 11674703 |
+| `AletheiaProfile` | `0x64C2c9974B5f6960E9671C0D843a29Be499dB534` | 11674698 |
 
-This deployment is **obsolete**. It serves the v1 seven-signal circuit, the contracts are
-deliberately not upgradeable, and no v2 proof can be submitted to it. It has to be
-redeployed once the contracts are migrated.
+`setClaimVerifier(1, Groth16VerifierAge)` confirmed in block 11674709; an on-chain read
+confirms `SUPPORTED_SCHEMA_VERSION == 2` and `claimVerifier[1]` points at the deployed
+`Groth16VerifierAge`. All four are verified on Etherscan and Sourcify.
 
-Consequently:
+The old v1 deployment (`0x51623fDD…`, `0x96888b28…`, `0x899DC043…`, `0x906c2D20…`) was
+obsolete — seven-signal, not upgradeable, no v2 proof submittable. Its Ignition state for
+`chain-11155111` was wiped and it was redeployed fresh; the retired addresses are dropped.
 
-- `docs/deployments.md` still reads "not deployed" in every row, which is currently the
-  honest state to publish, since the addresses above will not survive.
-- No issuer has been registered on the (obsolete v1) Sepolia deployment.
-  `packages/contracts/ignition/modules/Aletheia.ts` points at `scripts/register-issuer.ts`
-  as the deliberate separate step; **that script now exists** (Day 7) and is proven
-  against a local node, but has not been run against Sepolia because v2 is not deployed
-  there yet.
-- Etherscan verification has not been done for any address.
+The `mock-dev` issuer is registered and active:
+`issuerId 0xfee4bdf6ec605973cbc4ae331ef4c92cfc89ce43fb42da6d4d6517a164be2588` (register tx
+`0xe58167bb6d5ddc0dbf4c67aad0982f026d85efda7e14df01a2afc00a70cee2dc`, block 11674721),
+read back active on-chain. It verifies no identity — see `docs/trust-model.md`.
 
-`packages/contracts/scripts/preflight.ts` (untracked) does exist and works: it confirms
-the endpoint really is Sepolia, derives and prints the deployer address, and refuses to
-continue below 0.01 ETH.
+The deployer key now lives in the repository-root `.env` (`SEPOLIA_PRIVATE_KEY`),
+resolved via `hardhat.config.ts` loading `.env` into the environment — matching
+`preflight.ts`. `.env.example` and the config comments were updated to remove the earlier
+keystore contradiction (`myTasks.md` item 2).
 
 ## Stage gates
 
@@ -177,8 +174,8 @@ continue below 0.01 ETH.
 | 7 | Local proof verification | closed under v2 |
 | 8 | Solidity verifier | **closed under v2** — re-exported to `uint[9]`, 7 tests green, committed `.sol` asserted against the current proving key |
 | 9 | Contract tests | **closed under v2** — `AletheiaVerifier` migrated to nine signals, 46 passing; full negative suite complete (Day 5), each failure mode named, reserve-before-verify ordering asserted; `DateLib` proven against the TS codec on every day 1970–2100 (Day 6) |
-| 10 | Sepolia deployment | executed for v1, obsolete; nothing recorded in `docs/deployments.md` |
-| 11 | Real `ClaimVerified` event | not started |
+| 10 | Sepolia deployment | **closed** — v2 deployed, four addresses verified on Etherscan, `mock-dev` issuer registered and active, `docs/deployments.md` filled |
+| 11 | Real `ClaimVerified` event | not started (next: Day 9) |
 | 12 | Subgraph | not started; package does not exist |
 | 13 | GraphQL query layer | not started |
 | 14 | ENS resolution | not started |
@@ -193,8 +190,7 @@ continue below 0.01 ETH.
 
 ## Working tree
 
-Clean. The schema v2 migration was committed as reviewable per-area commits — credential
-(with the issuer-mock schema side), circuits, contracts, the normative documents, and the
-project scaffolding — rather than the one large four-package change it had become. The
-retired `packages/credential/fixtures/credential-v1.json` was deleted in favour of the v2
-fixture. Ignition deployment artifacts and all build output remain gitignored.
+The schema v2 migration was committed as reviewable per-area commits. Uncommitted on top,
+from the Sepolia deployment (Day 8): `docs/deployments.md`, `STATUS.md`, `myTasks.md`,
+`.env.example` and `packages/contracts/hardhat.config.ts` (the deployer-key location
+decision). Ignition deployment artifacts and all build output remain gitignored.

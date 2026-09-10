@@ -1,0 +1,43 @@
+type ClaimVerified @entity(immutable: true) {
+  id: Bytes!
+  verificationId: Bytes! # bytes32
+  subject: Bytes! # address
+  claimType: Int! # uint8
+  issuerId: Bytes! # bytes32
+  claimParameter: BigInt! # uint256
+  credentialValidOn: BigInt! # uint32
+  contextId: Bytes! # bytes32
+  nullifier: Bytes! # bytes32
+  identityNullifier: Bytes! # bytes32
+  verifiedAt: BigInt! # uint64
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type ClaimVerifierSet @entity(immutable: true) {
+  id: Bytes!
+  claimType: Int! # uint8
+  verifier: Bytes! # address
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type OwnershipTransferStarted @entity(immutable: true) {
+  id: Bytes!
+  previousOwner: Bytes! # address
+  newOwner: Bytes! # address
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type OwnershipTransferred @entity(immutable: true) {
+  id: Bytes!
+  previousOwner: Bytes! # address
+  newOwner: Bytes! # address
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
