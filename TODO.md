@@ -291,13 +291,23 @@ is `deriveVerificationState` (40 query tests green, up from 27).
 
 Needs `myTasks.md` item 5. Reference: https://docs.ens.domains/llms-full.txt
 
-- [ ] Forward (`getEnsAddress`) and reverse (`getEnsName`) through the Universal Resolver
+- [x] Forward (`getEnsAddress`) and reverse (`getEnsName`) through the Universal Resolver
       proxy `0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe`. viem pinned `>= 2.35`.
-- [ ] Read-only. No registrar, no subname minting, no ENS writes.
+- [x] Read-only. No registrar, no subname minting, no ENS writes.
 
 **Exit criteria** — a real name resolves to a real address; a name that does not exist
 returns not-found rather than throwing; an address with no reverse record is a normal
-first-class case.
+first-class case. **Met** — `packages/ens` added (`createEnsResolver`, `resolveAddress`
+forward / `resolveName` reverse), read-only over `MAINNET_RPC_URL` through the Universal
+Resolver proxy, no writes and no injectable transport. `scripts/check.ts`
+(`pnpm --filter @aletheia/ens run check`) ran live against real mainnet ENS: `vitalik.eth`
+→ `0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045` (forward), the resolved address reverse-
+resolved to `vitalik.eth` and forward round-tripped back (ENSv2 on-chain forward-match); a
+nonexistent name returned `null` (not-found, no throw); and a keccak-derived address with
+no reverse record (`0xfA89…51fd`) returned `null` — the absent-record vs failed-lookup
+split is the load-bearing distinction (a `null` result, never an error). 11 unit tests
+green on the pure seams (env validation, UTS-46 name normalisation, address checksumming);
+`typecheck` clean. The name is resolved live and never stored, per `docs/architecture.md`.
 
 ## Day 16 — M1: the end-to-end runner
 
