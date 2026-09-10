@@ -106,10 +106,10 @@ Two tests carry v1 expectations, and three v2 behaviours have no test at all.
 
 ## Day 5 — Stage 9: the negative suite
 
-- [ ] Restore full negative coverage under v2: wrong subject, stale date, future date,
+- [x] Restore full negative coverage under v2: wrong subject, stale date, future date,
       out-of-range parameter, unregistered issuer, revoked issuer, nullifier reuse,
       malformed proof, wrong schema version.
-- [ ] Assert the nullifier is marked used **before** the external verifier call, since
+- [x] Assert the nullifier is marked used **before** the external verifier call, since
       that ordering is the reentrancy defence.
 
 **Exit criteria** — every failure mode has its own test and its own custom error; no test
@@ -117,8 +117,15 @@ asserts a generic revert.
 
 ## Day 6 — Stage 9: `DateLib`
 
-- [ ] `DateLib.toYyyymmdd` matches the TypeScript codec over 10,000 dates spanning
-      1900-2100, including every leap-year boundary.
+- [x] `DateLib.toYyyymmdd` matches the TypeScript codec over 10,000 dates spanning
+      1900-2100, including every leap-year boundary. **Note:** the comparison starts at
+      the Unix epoch (1970), not 1900. `DateLib` takes a `uint256` timestamp and is only
+      ever fed `block.timestamp` (`AletheiaVerifier` converts "now" into `currentDate`
+      and never runs a birth or expiry date through it), so a pre-1970 date is a negative
+      Unix timestamp — unrepresentable as `uint256` and out of the library's domain by
+      construction. Every day from 1970-01-01 to 2100-12-31 is compared (~47,800
+      samples), plus an explicit leap-year-boundary sweep of every Feb 28 / Feb 29 /
+      Mar 1 and year rollover in range.
 
 **Exit criteria** — the 10k comparison passes with zero divergence, and the two
 implementations are compared directly rather than both against a third table.
