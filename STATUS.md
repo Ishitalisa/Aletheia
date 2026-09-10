@@ -17,7 +17,10 @@ across `docs/public-signals.md`, `AGE_PUBLIC_SIGNALS`, the generated verifier an
 `AletheiaVerifier` by `packages/contracts/test/PublicSignalsLayout.ts`. The Sepolia
 deployment that was already executed is a v1 deployment that v2 makes obsolete; it must be
 redeployed. Nothing downstream of the contracts — subgraph, web frontend, end-to-end
-runner — exists yet. The next task is **Day 5**, broadening the contract negative suite.
+runner — exists yet. Day 6 is done: `DateLib.toYyyymmdd` is compared directly against the
+TypeScript codec on every day from 1970-01-01 to 2100-12-31 (~47,800 samples) with zero
+divergence, plus an explicit leap-year-boundary sweep. The next task is **Day 7**, the
+`scripts/register-issuer.ts` issuer-registration script.
 
 ## Build status
 
@@ -28,7 +31,7 @@ runner — exists yet. The next task is **Day 5**, broadening the contract negat
 | `packages/credential` | **36 of 36 passing** (Day 1 done) |
 | `packages/issuer-mock` | **18 passing** (a stale v1 malformed-credential test was fixed during Day 4) |
 | `packages/circuits` | **26 of 26 passing** |
-| `packages/contracts` | **44 passing** (Day 3 done; +5 for the Day 4 layout-agreement test) |
+| `packages/contracts` | **46 passing** (Day 6 done; +1 for the leap-year-boundary sweep) |
 
 `packages/subgraph`, `packages/web` and `scripts` are named in `docs/architecture.md` and
 do not exist.
@@ -105,7 +108,15 @@ v2, recorded in `packages/circuits/constraints.lock.json`.
   before the pairing check (constant `SUPPORTED_SCHEMA_VERSION`, a `uint16`), and
   `ClaimVerified` now carries `identityNullifier` — non-indexed, with the per-context
   correlation consequence written into `docs/trust-model.md` first. Full suite: 39
-  passing.
+  passing. The negative suite was then completed (Day 5): every failure mode — wrong
+  subject, stale date, future date, out-of-range parameter, unregistered issuer, revoked
+  issuer, nullifier reuse, malformed proof, wrong schema version — has its own test and
+  its own named error, none asserting a generic revert, and a `ReserveOrderingProbe`
+  test-only adversarial verifier proves the nullifier is reserved *before* the external
+  verifier call (the reentrancy defence). The probe reads back the reservation at the
+  moment it is invoked and reverts carrying it; the assertion was confirmed to fail when
+  the observed value was flipped, so it is a real regression guard rather than a vacuous
+  decode. Full contracts suite: 45 passing.
 - ~~`docs/public-signals.md` is still stale.~~ **Done (Day 4).** It now freezes the
   nine-signal v2 layout, and `packages/contracts/test/PublicSignalsLayout.ts` asserts
   that layout agrees with `AGE_PUBLIC_SIGNALS`, the generated verifier and
@@ -157,7 +168,7 @@ continue below 0.01 ETH.
 | 6 | Local Groth16 proof | **closed under v2** — `docs/public-signals.md` updated and asserted to match the artifacts |
 | 7 | Local proof verification | closed under v2 |
 | 8 | Solidity verifier | **closed under v2** — re-exported to `uint[9]`, 7 tests green, committed `.sol` asserted against the current proving key |
-| 9 | Contract tests | **closed under v2** — `AletheiaVerifier` migrated to nine signals, 44 passing; full negative suite (Day 5) still to broaden |
+| 9 | Contract tests | **closed under v2** — `AletheiaVerifier` migrated to nine signals, 46 passing; full negative suite complete (Day 5), each failure mode named, reserve-before-verify ordering asserted; `DateLib` proven against the TS codec on every day 1970–2100 (Day 6) |
 | 10 | Sepolia deployment | executed for v1, obsolete; nothing recorded in `docs/deployments.md` |
 | 11 | Real `ClaimVerified` event | not started |
 | 12 | Subgraph | not started; package does not exist |
