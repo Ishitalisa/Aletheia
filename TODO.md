@@ -189,29 +189,53 @@ broadcast and recorded on-chain rather than rejected during estimation.
 
 ## Day 10 — Stage 12: subgraph schema and manifest
 
-- [ ] Create `packages/subgraph`. Entities `Profile`, `Verification`
+- [x] Create `packages/subgraph`. Entities `Profile`, `Verification`
       (`@entity(immutable: true)`), `Issuer`. `Bytes` ids throughout, `@derivedFrom` on
       the one side of each relation.
-- [ ] Manifest on `sepolia`, start block = the stage 10 deploy block.
+- [x] Manifest on `sepolia`, start block = the stage 10 deploy block.
 
 **Exit criteria** — `graph codegen` and `graph build` clean; no `eth_call` anywhere in
-the manifest or mappings.
+the manifest or mappings. Met: both run clean from a wiped `generated/`+`build/`
+(graph-cli 0.98.1, graph-ts 0.38.2). No `.bind`, `try_`, `ethereum.Call` or `callHandlers`
+anywhere — the three event handlers are the only entry points. A stray root-level
+`aletheia/` scaffold from an earlier misplaced `graph init` (commit `3abd85e`, default
+event-name entities, wrong start block) was removed so there is exactly one subgraph, at
+`packages/subgraph`. Handler bodies are empty stubs pinning the decoded event types;
+their entity logic and matchstick coverage are Day 11.
 
 ## Day 11 — Stage 12: mappings and matchstick tests
 
-- [ ] Handle `ClaimVerified`, `IssuerRegistered`, `IssuerRevoked`, `ProfileRegistered`.
-- [ ] The `mock-dev` label reaches the `Issuer` entity, because every UI record depends
-      on it to mark itself as mocked.
+- [x] Handle `ClaimVerified`, `IssuerRegistered`, `IssuerActiveSet` (the contract's
+      revocation event, not the `IssuerRevoked` this file first guessed), `ProfileRegistered`.
+- [x] The `mock-dev` label reaches the `Issuer` entity, because every UI record depends
+      on it to mark itself as mocked. Asserted by matchstick.
 
 **Exit criteria** — matchstick green, covering a first verification, a second in a
-different context, and an issuer revocation.
+different context, and an issuer revocation. Met: `All 6 tests passed` — first
+verification (record + subject Profile shell), a second in a different context (two
+immutable records, one shared Profile), and `IssuerActiveSet(false)` flipping the issuer
+inactive while leaving the prior immutable `Verification` untouched; plus the `mock-dev`
+label on the `Issuer`, the unknown-issuer guard, and `ProfileRegistered` filling
+`registeredAt` on an existing subject shell. matchstick 0.6.0 has no native Windows
+binary, so the run is via its Docker image; `scripts/test.mjs` (invoked by
+`pnpm --filter @aletheia/subgraph test`) mounts the repo root at the path pnpm's symlinks
+resolve to and runs the Linux binary. graph-ts was pinned down to 0.35.0 (from 0.38.2)
+because matchstick 0.6.0 — the newest release — compiles with assemblyscript 0.19.23,
+while graph-ts 0.36+ requires 0.27.31; `graph codegen`/`graph build` remain clean on 0.35.0.
 
 ## Day 12 — Stage 12: deploy the subgraph
 
 Needs `myTasks.md` item 4.
 
 **Exit criteria** — the stage 11 transaction is queryable as a real `Verification` entity
-from the Studio endpoint. Record the query URL in `docs/deployments.md`.
+from the Studio endpoint. Record the query URL in `docs/deployments.md`. Done: deployed to
+Studio as slug `aletheia`, version `v0.0.2` (deployment `QmNu6wYNr71…gpVEL`) — an earlier
+`v0.0.1` label had been reserved by a stale scaffold and Studio labels cannot be
+overwritten. Synced with `hasIndexingErrors: false` past block 11674993; the stage 11
+`ClaimVerified` (id `0xd24a4fc1…928c3`, tx `0x195671d0…b92719`) is queryable, with its
+`mock-dev` issuer and submitter `Profile` shell resolved through `@derivedFrom`. Query URL
+`https://api.studio.thegraph.com/query/1760063/aletheia/v0.0.2` recorded in
+`docs/deployments.md`.
 
 ## Day 13 — Stage 13: the query client
 

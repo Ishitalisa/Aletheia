@@ -1,8 +1,0 @@
-{
-  "sepolia": {
-    "AletheiaVerifier": {
-      "address": "0x110BB3af042ecbeA118d399e300a4358DC9b993c",
-      "startBlock": 11674698
-    }
-  }
-}

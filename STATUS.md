@@ -26,8 +26,19 @@ gitignored keystore, refuses any keystore not labelled `mock-dev`, reads the reg
 address from the Ignition deployment for the connected chain, registers the issuer as
 `mock-dev`, reads it back active, and refuses a second run rather than double-registering.
 Day 9 is done: a genuine age proof was submitted on Sepolia and the identical proof, on
-resubmission, reverted on-chain with `VerificationAlreadyRecorded`. The next task is
-**Day 10**, the subgraph schema and manifest.
+resubmission, reverted on-chain with `VerificationAlreadyRecorded`. Day 10 is done:
+`packages/subgraph` now exists with the designed schema (`Profile`, immutable
+`Verification`, `Issuer`; `Bytes` ids; `@derivedFrom` on the one side of each relation)
+and a three-dataSource manifest on `sepolia` starting at the stage 10 deploy blocks;
+`graph codegen` and `graph build` run clean with no `eth_call` anywhere. Day 11 is now
+done: the four event handlers (`ClaimVerified`, `IssuerRegistered`, `IssuerActiveSet`,
+`ProfileRegistered`) are implemented and matchstick is green — six tests covering a first
+verification, a second in a different context, an issuer revocation, the `mock-dev` label
+reaching the `Issuer`, the unknown-issuer guard, and `ProfileRegistered`. Day 12 is now
+done: the subgraph is deployed to Subgraph Studio on Sepolia (slug `aletheia`, version
+`v0.0.2`, deployment `QmNu6wYNr71…gpVEL`), synced with `hasIndexingErrors: false`, and the
+stage 11 `ClaimVerified` is queryable as a real `Verification` entity from the Studio
+endpoint. The next task is **Day 13**, the typed GraphQL query client.
 
 ## Build status
 
@@ -39,9 +50,11 @@ resubmission, reverted on-chain with `VerificationAlreadyRecorded`. The next tas
 | `packages/issuer-mock` | **18 passing** (a stale v1 malformed-credential test was fixed during Day 4) |
 | `packages/circuits` | **26 of 26 passing** |
 | `packages/contracts` | **46 passing** (Day 6 done; +1 for the leap-year-boundary sweep) |
+| `packages/subgraph` | **6 matchstick tests passing** (Day 11); `graph codegen`/`graph build` clean, no `eth_call`; deployed to Studio (Day 12), slug `aletheia` v0.0.2, synced clean |
 
-`packages/subgraph`, `packages/web` and `scripts` are named in `docs/architecture.md` and
-do not exist.
+`packages/web` and `scripts` are named in `docs/architecture.md` and do not exist.
+`packages/subgraph` exists with its schema, manifest, four implemented event handlers and
+matchstick coverage (Days 10–11). The subgraph is not yet deployed (Day 12).
 
 ## The schema v2 migration
 
@@ -200,8 +213,8 @@ path never collides with a record a previous run left behind.
 | 9 | Contract tests | **closed under v2** — `AletheiaVerifier` migrated to nine signals, 46 passing; full negative suite complete (Day 5), each failure mode named, reserve-before-verify ordering asserted; `DateLib` proven against the TS codec on every day 1970–2100 (Day 6) |
 | 10 | Sepolia deployment | **closed** — v2 deployed, four addresses verified on Etherscan, `mock-dev` issuer registered and active, `docs/deployments.md` filled |
 | 11 | Real `ClaimVerified` event | **closed** — genuine age proof submitted on Sepolia (tx `0x195671d0…`), replay reverted on-chain with `VerificationAlreadyRecorded` (tx `0x8aaf3b5e…`) |
-| 12 | Subgraph | not started; package does not exist (next: Day 10) |
-| 13 | GraphQL query layer | not started |
+| 12 | Subgraph | **closed** — schema, manifest, mappings and matchstick done (Days 10–11): 6 tests green, `graph codegen`/`graph build` clean, no `eth_call`; deployed to Studio (Day 12), slug `aletheia` v0.0.2, synced with no indexing errors, stage 11 `ClaimVerified` queryable as a real `Verification` |
+| 13 | GraphQL query layer | not started (next: Day 13) |
 | 14 | ENS resolution | not started |
 | — | **M1 end-to-end** | not reached; `scripts` runner does not exist |
 | 15 | Document extraction | not started; `docs/passport-extraction.md` written (untracked) |
@@ -215,7 +228,22 @@ path never collides with a record a previous run left behind.
 ## Working tree
 
 The schema v2 migration and the Sepolia deployment (Day 8) are committed. Uncommitted on
-top is the Day 9 work: the new `packages/contracts/scripts/submit-age-claim.ts` and the
-`STATUS.md` / `TODO.md` updates recording the two transaction hashes. (`pnpm-lock.yaml`
-carries an unrelated pre-existing change.) Ignition deployment artifacts and all build
-output remain gitignored.
+top is the Day 9 work (the new `packages/contracts/scripts/submit-age-claim.ts`) and the
+Days 10–11 work: the new `packages/subgraph` — schema, manifest, extracted ABIs, the four
+implemented event handlers (`src/verifier.ts`, `src/registry.ts`, `src/profile.ts`), the
+matchstick tests (`tests/aletheia.test.ts`, `tests/utils.ts`), the Docker-backed test
+runner (`scripts/test.mjs`) and the graph-cli-generated `tests/.docker/Dockerfile` it
+depends on — the removal of the misplaced root-level `aletheia/` scaffold (commit
+`3abd85e`), the Day 12 subgraph deploy (no new source files — `docs/deployments.md` filled
+in with the Studio slug, version and query URL, and the `.env` query-endpoint variable
+updated), and these `STATUS.md` / `TODO.md` updates. (`pnpm-lock.yaml` carries the
+graph-cli / graph-ts / matchstick-as / assemblyscript additions plus an unrelated
+pre-existing change.) The subgraph's `generated/` and `build/` are gitignored, as are the
+Ignition deployment artifacts and all other build output.
+
+**Toolchain note (Day 11):** the subgraph's `@graphprotocol/graph-ts` was pinned down from
+`0.38.2` to `0.35.0`. matchstick 0.6.0 is the newest matchstick release and it compiles
+with `assemblyscript` 0.19.23 (its bundled `bin/asc` layout); graph-ts 0.36+ moved to
+assemblyscript 0.27.31, which matchstick 0.6.0 cannot invoke. 0.35.0 is the last graph-ts
+on asc 0.19.x, and `graph codegen`/`graph build` still run clean on it. The subgraph also
+gains `assemblyscript@0.19.23` and `matchstick-as@0.6.0` as devDependencies.
