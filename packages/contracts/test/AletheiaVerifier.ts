@@ -270,6 +270,31 @@ describe("AletheiaVerifier", () => {
     });
   });
 
+  describe("reserve ordering (the reentrancy defence)", () => {
+    it("marks the nullifier used before calling the external verifier", async () => {
+      // The verifier is owner-set and therefore untrusted. If it could re-enter
+      // submitAgeClaim before the nullifier was reserved, it could record the same
+      // verification twice. The defence is ordering: _reserve runs first. This probe
+      // stands in for the verifier and reads back, at the moment it is called, whether
+      // the id is already reserved — proving the ordering directly rather than by
+      // inspecting the source. It never returns true, so no simulated proof success
+      // enters the submit path; the transaction always reverts on the observation.
+      const deployment = await deployAletheia();
+      const probe = await deployment.viem.deployContract("ReserveOrderingProbe", [
+        deployment.verifier.address,
+      ]);
+      await deployment.verifier.write.setClaimVerifier([1, probe.address]);
+
+      const bundle = await buildAgeClaim(deployment);
+      await deployment.viem.assertions.revertWithCustomErrorWithArgs(
+        submitAsHolder(deployment, bundle),
+        probe,
+        "ReservedBeforeVerify",
+        [true],
+      );
+    });
+  });
+
   describe("configuration", () => {
     it("rejects a claim type with no verifier", async () => {
       const { viem } = await network.create();
