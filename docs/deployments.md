@@ -34,8 +34,20 @@ block 11674721 (tx `0xe58167bb6d5ddc0dbf4c67aad0982f026d85efda7e14df01a2afc00a70
 
 ## Subgraph
 
+Deployed to Subgraph Studio on Sepolia 2026-09-10. Synced with no indexing errors past the
+stage 11 block (11674993); the stage 11 `ClaimVerified` is queryable as a real
+`Verification` entity (id `0xd24a4fc1052a1b7753e1fffd825666a3946fd2ee5c88e8f472fb743fab6928c3`,
+tx `0x195671d0…b92719`), with its `mock-dev` issuer and submitter `Profile` shell resolved
+through `@derivedFrom`.
+
+An earlier `v0.0.1` label had been reserved by a stale scaffold (its schema had no
+`Verification` type) and Studio labels cannot be overwritten, so the current subgraph ships
+as `v0.0.2`.
+
 | Field | Value |
 |---|---|
-| Studio slug | not deployed |
-| Query URL | not deployed |
+| Studio slug | `aletheia` |
+| Version label | `v0.0.2` |
+| Deployment (IPFS) | `QmNu6wYNr71x95ynBpLCMbErm2bCZmNTzAg9umYKvgpVEL` |
+| Query URL | `https://api.studio.thegraph.com/query/1760063/aletheia/v0.0.2` |
 | Start block | 11674698 |
