@@ -49,6 +49,16 @@ export default defineConfig({
       type: "edr-simulated",
       chainType: "l1",
     },
+    // A standalone `npx hardhat node`. State persists across invocations, so the
+    // register-issuer script can be exercised end to end — register, read back, and a
+    // second run refusing to double-register — without spending Sepolia funds. Accounts
+    // are the node's own unlocked dev accounts.
+    localhost: {
+      type: "http",
+      chainType: "l1",
+      url: "http://127.0.0.1:8545",
+      accounts: "remote",
+    },
     // Secrets come from the Hardhat keystore or the environment, never from a file in
     // the repository. See .env.example.
     sepolia: {

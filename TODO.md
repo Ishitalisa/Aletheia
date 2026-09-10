@@ -135,14 +135,21 @@ implementations are compared directly rather than both against a third table.
 `packages/contracts/ignition/modules/Aletheia.ts` names this script and it does not
 exist.
 
-- [ ] Read the mock issuer public key from the local gitignored keystore, call
+- [x] Read the mock issuer public key from the local gitignored keystore, call
       `AletheiaIssuerRegistry.register`, label it `mock-dev`.
-- [ ] Deliberately not part of the Ignition module: it depends on an operator's local
+- [x] Deliberately not part of the Ignition module: it depends on an operator's local
       files.
-- [ ] Refuse to run against a key that is not the local mock issuer's.
+- [x] Refuse to run against a key that is not the local mock issuer's — refuses any
+      keystore whose `label` is not `mock-dev`, before touching the chain.
 
 **Exit criteria** — against a local Hardhat node, the issuer registers, reads back
-active, and a second run fails cleanly rather than double-registering.
+active, and a second run fails cleanly rather than double-registering. Demonstrated: on a
+standalone `hardhat node` (chain 31337) with the contracts deployed via Ignition, the
+first run mined the `register` tx and read the entry back active; the second run refused
+before sending anything (`already registered … Nothing to do`, exit 1); and a keystore
+labelled `production-issuer` was refused before any chain interaction. A `localhost`
+network was added to `hardhat.config.ts` so this is reproducible without spending Sepolia
+funds.
 
 ## Day 8 — Stage 10: deploy to Sepolia
 

@@ -19,8 +19,14 @@ deployment that was already executed is a v1 deployment that v2 makes obsolete; 
 redeployed. Nothing downstream of the contracts — subgraph, web frontend, end-to-end
 runner — exists yet. Day 6 is done: `DateLib.toYyyymmdd` is compared directly against the
 TypeScript codec on every day from 1970-01-01 to 2100-12-31 (~47,800 samples) with zero
-divergence, plus an explicit leap-year-boundary sweep. The next task is **Day 7**, the
-`scripts/register-issuer.ts` issuer-registration script.
+divergence, plus an explicit leap-year-boundary sweep. Day 7 is done:
+`packages/contracts/scripts/register-issuer.ts` reads the mock issuer key from the
+gitignored keystore, refuses any keystore not labelled `mock-dev`, reads the registry
+address from the Ignition deployment for the connected chain, registers the issuer as
+`mock-dev`, reads it back active, and refuses a second run rather than double-registering
+— all demonstrated end to end against a standalone local Hardhat node. The next task is
+**Day 8**, deploying v2 to Sepolia (blocked on `myTasks.md` items 1–3, in particular the
+deployer-key location contradiction in item 2).
 
 ## Build status
 
@@ -146,9 +152,11 @@ Consequently:
 
 - `docs/deployments.md` still reads "not deployed" in every row, which is currently the
   honest state to publish, since the addresses above will not survive.
-- No issuer has been registered on-chain. `packages/contracts/ignition/modules/Aletheia.ts`
-  points at `scripts/register-issuer.ts` as the deliberate separate step; **that script
-  does not exist**.
+- No issuer has been registered on the (obsolete v1) Sepolia deployment.
+  `packages/contracts/ignition/modules/Aletheia.ts` points at `scripts/register-issuer.ts`
+  as the deliberate separate step; **that script now exists** (Day 7) and is proven
+  against a local node, but has not been run against Sepolia because v2 is not deployed
+  there yet.
 - Etherscan verification has not been done for any address.
 
 `packages/contracts/scripts/preflight.ts` (untracked) does exist and works: it confirms
