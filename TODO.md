@@ -259,13 +259,33 @@ rejection test for a string arriving where the endpoint actually sends a number)
 
 ## Day 14 — Stage 13: the five states
 
-- [ ] Derive `verified`, `stale`, `revoked issuer`, `pending indexing`, `not found`, each
-      with its own reason.
-- [ ] Each state needs a **real** cause. `revoked` means actually revoking the issuer
-      on-chain; `pending` means querying inside the real indexing window.
+- [x] Derive `verified`, `stale`, `revoked issuer`, `pending indexing`, `not found`, each
+      with its own reason. `packages/query/src/state.ts`: pure `deriveVerificationState`
+      (record + `_meta` + policy + injected `now` → one of five states), unit-tested at
+      13 tests covering every branch, both precedences (revoked > stale, indexer-errored
+      first) and the boundaries. Freshness is measured on `verifiedAt`, not
+      `credentialValidOn`: the latter is day-granular and always today for a same-day
+      record, so it cannot express sub-day freshness. Rationale in the module header and
+      `docs/security.md`.
+- [x] Each state needs a **real** cause. All five reproduced from the deployed Studio
+      endpoint, no simulated state:
+      - `verified` / `stale` — the same real stage 11 record (`0xd24a4fc1…928c3`), read
+        live, under a 30-day window (verified) and a 1-hour window (stale); it was
+        genuinely ~4.7h old.
+      - `not found` — a live query for the all-zero id returned `null` with current meta.
+      - `pending` — `scripts/reproduce-pending.ts` submitted a real age claim (tx
+        `0xd7816a31…5801e`, block 11676384) and polled the endpoint; the indexer sat at
+        11676383 for four polls (`pending / awaiting-index`) before reaching 11676384 and
+        flipping to `verified`.
+      - `revoked` — `setActive(mock-dev, false)` on-chain (tx `0x7a7b72f5…4636f`, block
+        11676390); once indexed, the stage 11 record read `revoked`. The issuer was then
+        re-activated (tx `0x44bb9fc8…757d`, block 11676394) and confirmed back to
+        `verified`, restoring the shared deployment.
 
 **Exit criteria** — all five reproduced from real endpoint data, each with the artifact
-that caused it. A simulated state does not count.
+that caused it. A simulated state does not count. **Met** — see the tx hashes and blocks
+above; the read/derive gate is `pnpm --filter @aletheia/query run states`, the pure seam
+is `deriveVerificationState` (40 query tests green, up from 27).
 
 ## Day 15 — Stage 14: ENS resolution
 

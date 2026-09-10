@@ -34,7 +34,7 @@ risk.
 | Credential shared between wallets | `subject` is part of the issuer-signed message | stages 3, 4 |
 | Expired credential | expiry checked inside every claim circuit against the contract-validated `currentDate` | stage 4 |
 | Backdated or future-dated proof | contract derives today's UTC date from `block.timestamp` and accepts only `{today, today - 1}` | stage 9 |
-| Stale verification record | `credentialValidOn` in the event; verifier-side freshness policy renders `stale` distinctly from `verified` | stage 13 |
+| Stale verification record | `verifiedAt` (the event's `block.timestamp`) drives a verifier-side freshness policy that renders `stale` distinctly from `verified`; `credentialValidOn` is also on the record for a coarser, credential-oriented check. `verifiedAt` is used because `credentialValidOn` is day-granular and always today for a record made today, so it cannot express sub-day freshness (`packages/query/src/state.ts`) | stage 13 (Day 14) |
 
 ## Infrastructure and display
 

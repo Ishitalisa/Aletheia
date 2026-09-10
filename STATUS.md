@@ -49,7 +49,12 @@ same record. Introspecting the live schema surfaced a genuine bug before the gat
 graph-node's built-in `_meta.block.number` is `Int!` (a JSON number), unlike the
 subgraph's own `BigInt` fields (decimal strings), and `decode.ts` had assumed the latter
 for both. Fixed in the decoder, not worked around. No mocked `fetch` anywhere in the read
-path. The next task is **Day 14**, the five verification states.
+path. Day 14 is now done: `packages/query` derives the **five verification states**
+(`verified`, `stale`, `revoked`, `pending`, `not-found`) from a real read via the pure
+`deriveVerificationState`, and all five were reproduced against the live Studio endpoint
+with real artifacts — including an actual on-chain issuer revocation and re-activation for
+`revoked`, and a real submit-and-poll for `pending`. The next task is **Day 15**, ENS
+resolution.
 
 ## Build status
 
@@ -62,7 +67,7 @@ path. The next task is **Day 14**, the five verification states.
 | `packages/circuits` | **26 of 26 passing** |
 | `packages/contracts` | **46 passing** (Day 6 done; +1 for the leap-year-boundary sweep) |
 | `packages/subgraph` | **6 matchstick tests passing** (Day 11); `graph codegen`/`graph build` clean, no `eth_call`; deployed to Studio (Day 12), slug `aletheia` v0.0.2, synced clean |
-| `packages/query` | **27 of 27 passing** (Day 13 done); `scripts/check.ts` passes live against the deployed Studio endpoint |
+| `packages/query` | **40 of 40 passing** (Day 14 done, +13 for the five-state derivation); `scripts/check.ts` and `scripts/states.ts` pass live against the deployed Studio endpoint |
 
 `packages/web` and `scripts` are named in `docs/architecture.md` and do not exist.
 `packages/subgraph` exists with its schema, manifest, four implemented event handlers and
@@ -209,6 +214,41 @@ estimation, and the custom error name was decoded from a live `eth_call` against
 state. `credentialId` and `identitySecret` are freshly random per run, so the success
 path never collides with a record a previous run left behind.
 
+## The five verification states (Day 14)
+
+`packages/query/src/state.ts` adds `deriveVerificationState` — pure (record + `_meta` +
+freshness policy + injected `now` in, one of five named states out), the unit-tested seam
+the same way the decoders are. Precedence is fixed: `pending / indexer-errored` first
+(nothing an errored indexer returns can be trusted), then `pending / awaiting-index`
+(absent but a newer block was expected), then `not-found`, then `revoked` (issuer inactive
+outranks an old record), then `stale`, then `verified`. Freshness is measured on
+`verifiedAt`, not `credentialValidOn`: the latter is day-granular and always today for a
+same-day record, so it cannot express sub-day freshness — the module header and
+`docs/security.md` carry the reasoning. `createQueryClient().verificationState(id, …)`
+composes the live query with the derivation in one round trip; `scripts/states.ts` is the
+read/derive gate.
+
+All five were reproduced against the deployed Studio endpoint — no simulated state:
+
+| State | Real cause / artifact |
+|---|---|
+| `verified` | the stage 11 record `0xd24a4fc1…928c3`, read live under a 30-day freshness window |
+| `stale` | the *same* record read under a 1-hour window; it was genuinely ~4.7h old (`verifiedAt` 1789043940) |
+| `not-found` | a live query for the all-zero id returned `null` with current meta |
+| `pending` | `reproduce-pending.ts` submitted a real claim (tx `0xd7816a31…5801e`, block 11676384); the indexer sat at 11676383 for four polls (`awaiting-index`) then reached 11676384 and the same lookup flipped to `verified` |
+| `revoked` | `setActive(mock-dev, false)` on-chain (tx `0x7a7b72f5…4636f`, block 11676390); once indexed the stage 11 record read `revoked` |
+
+The revocation was reversed immediately: `setActive(mock-dev, true)` (tx `0x44bb9fc8…757d`,
+block 11676394), confirmed back to `verified` once indexed, so the shared Sepolia
+deployment is left exactly as it was — issuer active, both records verifiable. The extra
+`pending` submit left a second real `Verification` on-chain
+(`0x0053414b…47312`, block 11676384); it is a genuine record, not a fixture.
+
+`packages/contracts` gained `@aletheia/query` as a devDependency (workspace) so
+`reproduce-pending.ts` can both submit on-chain and derive the state from the live read in
+one process. `scripts/set-issuer-active.ts` (refuses any issuer but `mock-dev`) is the
+revoke/restore tool.
+
 ## Stage gates
 
 | # | Stage | State |
@@ -226,7 +266,7 @@ path never collides with a record a previous run left behind.
 | 10 | Sepolia deployment | **closed** — v2 deployed, four addresses verified on Etherscan, `mock-dev` issuer registered and active, `docs/deployments.md` filled |
 | 11 | Real `ClaimVerified` event | **closed** — genuine age proof submitted on Sepolia (tx `0x195671d0…`), replay reverted on-chain with `VerificationAlreadyRecorded` (tx `0x8aaf3b5e…`) |
 | 12 | Subgraph | **closed** — schema, manifest, mappings and matchstick done (Days 10–11): 6 tests green, `graph codegen`/`graph build` clean, no `eth_call`; deployed to Studio (Day 12), slug `aletheia` v0.0.2, synced with no indexing errors, stage 11 `ClaimVerified` queryable as a real `Verification` |
-| 13 | GraphQL query layer | **closed** — `packages/query` reads live from the Studio endpoint: `scripts/check.ts` returned indexer block 11676205, the stage 11 `Verification` matched against its transaction hash and `mock-dev` issuer label, and the derived `Profile.verifications` side; 27 unit tests green, no mocked `fetch` (next: Day 14) |
+| 13 | GraphQL query layer | **closed** — `packages/query` reads live from the Studio endpoint: `scripts/check.ts` returned indexer block 11676205, the stage 11 `Verification` matched against its transaction hash and `mock-dev` issuer label, and the derived `Profile.verifications` side; the **five verification states** are now derived by the pure `deriveVerificationState` and all five reproduced from real endpoint data (Day 14) — a real on-chain revoke/restore for `revoked`, a real submit-and-poll for `pending`; 40 unit tests green, no mocked `fetch` (next: Day 15, ENS) |
 | 14 | ENS resolution | not started |
 | — | **M1 end-to-end** | not reached; `scripts` runner does not exist |
 | 15 | Document extraction | not started; `docs/passport-extraction.md` written (untracked) |
@@ -242,11 +282,15 @@ path never collides with a record a previous run left behind.
 Everything through Day 12 — the schema v2 migration, the Sepolia deployment, the Day 9
 `submit-age-claim.ts` run, and the subgraph (schema, mappings, matchstick tests, the
 Docker-backed test runner, and the Day 12 Studio deploy) — is committed, most recently as
-`8b8016d`. Day 13 adds `packages/query` (transport, decoders, typed reads,
-`scripts/check.ts`) and the `pnpm-lock.yaml` importer entry it needs, committed alongside
-this file and `TODO.md`. `git status` is clean after that commit. The subgraph's
-`generated/` and `build/` remain gitignored, as are the Ignition deployment artifacts and
-all other build output.
+`8b8016d`. Day 13 added `packages/query` (transport, decoders, typed reads,
+`scripts/check.ts`), committed as `ea0d43f`. Day 14 adds the five-state derivation
+(`src/state.ts`, `src/state.test.ts`, the `verificationState` client method and the new
+exports), the `scripts/states.ts` read/derive gate, the on-chain
+`packages/contracts/scripts/set-issuer-active.ts` and `reproduce-pending.ts`, the
+`@aletheia/query` devDependency on `packages/contracts` with its `pnpm-lock.yaml` entry,
+and the `docs/security.md` freshness refinement, committed alongside this file and
+`TODO.md`. The subgraph's `generated/` and `build/`, `packages/query/dist/`, the Ignition
+deployment artifacts and all other build output remain gitignored.
 
 **Toolchain note (Day 11):** the subgraph's `@graphprotocol/graph-ts` was pinned down from
 `0.38.2` to `0.35.0`. matchstick 0.6.0 is the newest matchstick release and it compiles
