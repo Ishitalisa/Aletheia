@@ -171,12 +171,17 @@ on-chain, and `docs/deployments.md` containing no "not deployed" row.
 
 ## Day 9 — Stage 11: a real `ClaimVerified` event
 
-- [ ] Submit a genuine age proof from a funded wallet on Sepolia.
-- [ ] Resubmit the same proof and confirm it reverts with `VerificationAlreadyRecorded`
+- [x] Submit a genuine age proof from a funded wallet on Sepolia.
+- [x] Resubmit the same proof and confirm it reverts with `VerificationAlreadyRecorded`
       **on-chain**, not in a local test.
 
 **Exit criteria** — a real transaction hash for the success and a real one for the
-revert, both recorded in `STATUS.md`.
+revert, both recorded in `STATUS.md`. Done: `scripts/submit-age-claim.ts` signs a
+mock-dev credential bound to the wallet, proves `age.circom`, and submits. Success tx
+`0x195671d0…b92719` (block 11674993) emitted `ClaimVerified`; the identical proof
+resubmitted was mined as a reverted tx `0x8aaf3b5e…d1088c` (block 11674994), decoded
+reason `VerificationAlreadyRecorded`. The revert carried explicit gas so it was
+broadcast and recorded on-chain rather than rejected during estimation.
 
 ---
 
