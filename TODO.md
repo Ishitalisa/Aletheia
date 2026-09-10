@@ -239,11 +239,23 @@ overwritten. Synced with `hasIndexingErrors: false` past block 11674993; the sta
 
 ## Day 13 — Stage 13: the query client
 
-- [ ] Typed GraphQL client reading `_meta.block.number` and `hasIndexingErrors` alongside
+- [x] Typed GraphQL client reading `_meta.block.number` and `hasIndexingErrors` alongside
       every record.
 
 **Exit criteria** — a live query against the real endpoint returns the stage 11 record
-plus meta. No mocked `fetch` anywhere in the read path.
+plus meta. No mocked `fetch` anywhere in the read path. Met: `packages/query` added —
+one transport (`client.ts`), strict decoders (`decode.ts`), and
+`scripts/check.ts` run against the deployed Studio endpoint
+`https://api.studio.thegraph.com/query/1760063/aletheia/v0.0.2`. The live run read
+indexer block **11676205** (`hasIndexingErrors: false`) and the stage 11
+`Verification` `0xd24a4fc1…928c3`, matching transaction `0x195671d0…b92719` and the
+`mock-dev` issuer label; the subject's derived `Profile.verifications` resolved back to
+the same record. Along the way, introspecting the live schema found a real bug rather
+than a naming mismatch: graph-node's built-in `_meta.block.number` is `Int!` (a JSON
+number), not the subgraph's own `BigInt` (a decimal string) — `decode.ts` had assumed
+the latter for every block number alike. Fixed by decoding it as an `Int` and converting
+to `bigint` after. 27 unit tests green (up from 26 — the fixed assumption added a
+rejection test for a string arriving where the endpoint actually sends a number).
 
 ## Day 14 — Stage 13: the five states
 
