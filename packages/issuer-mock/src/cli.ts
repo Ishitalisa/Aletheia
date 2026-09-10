@@ -28,10 +28,18 @@ interface CredentialInputJson {
   nationality: number;
   expiryDate: number;
   issuedAt: number;
+  identitySecret?: string;
 }
 
 function readCredential(path: string): NormalizedCredential {
   const json = JSON.parse(readFileSync(path, "utf8")) as CredentialInputJson;
+  if (json.identitySecret === undefined) {
+    throw new Error(
+      `${path}: missing identitySecret. A real issuer derives it once per document with ` +
+        "deriveIdentitySecret({ issuerSalt, documentKey }); it is not a value the holder " +
+        "supplies. See docs/credential-schema.md.",
+    );
+  }
   return {
     schemaVersion: json.schemaVersion,
     credentialId: BigInt(json.credentialId),
@@ -40,6 +48,7 @@ function readCredential(path: string): NormalizedCredential {
     nationality: json.nationality,
     expiryDate: json.expiryDate,
     issuedAt: json.issuedAt,
+    identitySecret: BigInt(json.identitySecret),
   };
 }
 

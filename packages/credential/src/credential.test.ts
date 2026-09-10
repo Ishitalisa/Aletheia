@@ -25,8 +25,15 @@ test("the committed fixture is a valid credential", () => {
 
 test("rejects every malformed credential", () => {
   const cases: ReadonlyArray<[string, Partial<NormalizedCredential>]> = [
-    ["unsupported schema version", { schemaVersion: 2 }],
+    ["retired schema version 1", { schemaVersion: 1 }],
+    ["unreleased schema version", { schemaVersion: 3 }],
     ["zero credential id", { credentialId: 0n }],
+    ["zero identity secret", { identitySecret: 0n }],
+    ["identity secret above the field", { identitySecret: 2n ** 255n }],
+    [
+      "identity secret reused as the credential id",
+      { identitySecret: fixture.credential.credentialId },
+    ],
     ["credential id above the field", { credentialId: 2n ** 255n }],
     ["address without 0x", { subject: "70997970c51812dc3a010c7d01b50e0d17dc79c8" }],
     ["truncated address", { subject: "0x7099" }],
