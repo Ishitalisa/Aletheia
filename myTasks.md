@@ -79,16 +79,24 @@ endpoint.
 
 ### 5. Mainnet RPC endpoint
 
-- [ ] Create a **mainnet** endpoint and put it in `.env` as `MAINNET_RPC_URL`.
+- [x] Create a **mainnet** endpoint and put it in `.env` as `MAINNET_RPC_URL`. Done: an
+  Alchemy mainnet endpoint is set and confirmed live (`eth_chainId` returns `1`).
 
 Read-only, used solely to resolve ENS names through the Universal Resolver. Aletheia
 never writes to ENS and never creates ENS state.
 
-- [ ] Nominate a real ENS name to use as the resolution test case. It does not need to be
-  ```
-  yours, and it must not be invented — the stage 14 gate is that a *real* name
-  resolves.
-  ```
+- [x] Nominate a real ENS name to use as the resolution test case. **Decided:
+  `vitalik.eth`**, a real registered name with both a forward record and a reverse record,
+  so both directions of the stage 14 gate are exercisable.
+
+  It is a **test vector only**. The implementation must NOT hardcode its resolved address
+  and must NOT special-case the name: Day 15 performs a genuine ENS resolution through the
+  Universal Resolver proxy over the configured `MAINNET_RPC_URL`, and the test asserts the
+  live result. Verify **forward** (`getEnsAddress`: name → address) and **reverse**
+  (`getEnsName`: address → name) where applicable, plus the two first-class edge cases from the exit
+  criteria — a name that does not exist returns not-found rather than throwing, and an
+  address with no reverse record is a normal case — both of which can be built from any
+  address without a second nominated name.
 
 ---
 
