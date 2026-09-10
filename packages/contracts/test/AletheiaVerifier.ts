@@ -32,7 +32,7 @@ describe("AletheiaVerifier", () => {
       const issuerId = await registry.read.issuerId([issuer.publicKey.ax, issuer.publicKey.ay]);
       const verificationId = await verifier.read.verificationIdFor([
         1,
-        bundle.signals[5],
+        bundle.signals[7],
         bundle.signals[0],
       ]);
 
@@ -47,8 +47,9 @@ describe("AletheiaVerifier", () => {
           issuerId,
           18n,
           await chainToday(deployment),
-          `0x${bundle.signals[5].toString(16).padStart(64, "0")}`,
+          `0x${bundle.signals[7].toString(16).padStart(64, "0")}`,
           `0x${bundle.signals[0].toString(16).padStart(64, "0")}`,
+          `0x${bundle.signals[1].toString(16).padStart(64, "0")}`,
           (value: bigint) => value > 0n,
         ],
       );
@@ -81,7 +82,7 @@ describe("AletheiaVerifier", () => {
     it("records the verification id so a replay is detectable", async () => {
       const verificationId = await deployment.verifier.read.verificationIdFor([
         1,
-        bundle.signals[5],
+        bundle.signals[7],
         bundle.signals[0],
       ]);
       assert.equal(await deployment.verifier.read.verificationUsed([verificationId]), true);
@@ -219,7 +220,7 @@ describe("AletheiaVerifier", () => {
       const deployment = await deployAletheia();
       const bundle = await buildAgeClaim(deployment);
       const inflated = [...bundle.signals];
-      inflated[4] = 21n;
+      inflated[6] = 21n;
       await deployment.viem.assertions.revertWithCustomError(
         deployment.verifier.write.submitAgeClaim(
           [bundle.calldata.a, bundle.calldata.b, bundle.calldata.c, inflated as never],
@@ -237,7 +238,7 @@ describe("AletheiaVerifier", () => {
       const deployment = await deployAletheia();
       const bundle = await buildAgeClaim(deployment);
       const absurd = [...bundle.signals];
-      absurd[4] = 121n;
+      absurd[6] = 121n;
       await deployment.viem.assertions.revertWithCustomError(
         deployment.verifier.write.submitAgeClaim(
           [bundle.calldata.a, bundle.calldata.b, bundle.calldata.c, absurd as never],
@@ -245,6 +246,26 @@ describe("AletheiaVerifier", () => {
         ),
         deployment.verifier,
         "ClaimParameterOutOfRange",
+      );
+    });
+  });
+
+  describe("schema version", () => {
+    it("refuses a proof whose schemaVersion is not the one deployed", async () => {
+      // The circuit pins schemaVersion to 2, so no real v2 proof carries anything else.
+      // A v1 proof padded into nine slots, or a future schema, lands a non-2 value here;
+      // the contract must name the failure rather than let it reach the pairing check.
+      const deployment = await deployAletheia();
+      const bundle = await buildAgeClaim(deployment);
+      const wrongSchema = [...bundle.signals];
+      wrongSchema[2] = 1n;
+      await deployment.viem.assertions.revertWithCustomError(
+        deployment.verifier.write.submitAgeClaim(
+          [bundle.calldata.a, bundle.calldata.b, bundle.calldata.c, wrongSchema as never],
+          { account: deployment.holder.account },
+        ),
+        deployment.verifier,
+        "SchemaVersionNotSupported",
       );
     });
   });
@@ -260,7 +281,7 @@ describe("AletheiaVerifier", () => {
         owner!.account.address,
         registry.address,
       ]);
-      const zeros = [0n, 0n, 0n, 0n, 0n, 0n, 0n] as const;
+      const zeros = [0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n] as const;
       await viem.assertions.revertWithCustomError(
         verifier.write.submitAgeClaim([[0n, 0n], [[0n, 0n], [0n, 0n]], [0n, 0n], zeros]),
         verifier,

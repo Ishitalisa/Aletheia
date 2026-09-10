@@ -6,13 +6,13 @@ import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step
 import {AletheiaIssuerRegistry} from "./AletheiaIssuerRegistry.sol";
 import {DateLib} from "./lib/DateLib.sol";
 
-/// @dev The snarkjs-generated verifier for a 7-signal circuit (see AgeClaim).
-interface IGroth16Verifier7 {
+/// @dev The snarkjs-generated verifier for a 9-signal circuit (see AgeClaim, schema v2).
+interface IGroth16Verifier9 {
     function verifyProof(
         uint256[2] calldata a,
         uint256[2][2] calldata b,
         uint256[2] calldata c,
-        uint256[7] calldata publicSignals
+        uint256[9] calldata publicSignals
     ) external view returns (bool);
 }
 
@@ -40,6 +40,19 @@ contract AletheiaVerifier is Ownable2Step {
     /// @dev Matches `MAX_MINIMUM_AGE` in packages/credential and the circuit's range check.
     uint256 public constant MAX_MINIMUM_AGE = 120;
 
+    /**
+     * @dev The single credential schema version this deployment serves.
+     *
+     * The circuit pins `schemaVersion` to its compiled constant, so a v2 proof cannot
+     * carry any other value and the contract cannot be fooled into decoding a v1 layout
+     * as a v2 one. The check exists so a proof for the wrong schema is refused with a
+     * named error rather than failing an ABI decode or a pairing check, and so the two
+     * schema versions can never be live on one deployed verifier — see
+     * `docs/credential-schema.md`. It is a `uint16`, matching `MAX_SCHEMA_VERSION` in
+     * packages/credential.
+     */
+    uint16 public constant SUPPORTED_SCHEMA_VERSION = 2;
+
     AletheiaIssuerRegistry public immutable issuerRegistry;
 
     /// @notice Claim type to the Groth16 verifier that decides it.
@@ -62,6 +75,9 @@ contract AletheiaVerifier is Ownable2Step {
      * @param credentialValidOn the date the credential was proven unexpired on, YYYYMMDD
      * @param contextId the verifier scope the proof was bound to
      * @param nullifier per credential, claim type and context; makes replay detectable
+     * @param identityNullifier `Poseidon(identitySecret, contextId)`; stable across every
+     * credential and wallet one identity proves with in this context, and unrelated across
+     * contexts. A per-context correlation handle by design — see `docs/trust-model.md`.
      */
     event ClaimVerified(
         bytes32 indexed verificationId,
@@ -72,12 +88,14 @@ contract AletheiaVerifier is Ownable2Step {
         uint32 credentialValidOn,
         bytes32 contextId,
         bytes32 nullifier,
+        bytes32 identityNullifier,
         uint64 verifiedAt
     );
 
     event ClaimVerifierSet(uint8 indexed claimType, address indexed verifier);
 
     error NoVerifierForClaim(uint8 claimType);
+    error SchemaVersionNotSupported(uint256 submitted, uint16 supported);
     error SubjectIsNotSender(address subject, address sender);
     error DateNotCurrent(uint32 submitted, uint32 today);
     error ClaimParameterOutOfRange(uint256 parameter, uint256 maximum);
@@ -103,10 +121,11 @@ contract AletheiaVerifier is Ownable2Step {
 
     /**
      * @notice Prove an age claim: the holder of an issuer-signed, unexpired credential is
-     * at least `publicSignals[4]` years old.
+     * at least `publicSignals[6]` years old.
      *
-     * Public signals, in the order frozen in `docs/public-signals.md`:
-     * `[nullifier, issuerAx, issuerAy, currentDate, minimumAge, contextId, subject]`.
+     * Public signals, in the nine-signal v2 order frozen in `docs/public-signals.md`:
+     * `[nullifier, identityNullifier, schemaVersion, issuerAx, issuerAy, currentDate,
+     * minimumAge, contextId, subject]`.
      *
      * Reverts unless everything holds. There is no partial success.
      */
@@ -114,31 +133,39 @@ contract AletheiaVerifier is Ownable2Step {
         uint256[2] calldata a,
         uint256[2][2] calldata b,
         uint256[2] calldata c,
-        uint256[7] calldata publicSignals
+        uint256[9] calldata publicSignals
     ) external returns (bytes32 verificationId) {
         address verifier = claimVerifier[CLAIM_TYPE_AGE];
         if (verifier == address(0)) revert NoVerifierForClaim(CLAIM_TYPE_AGE);
 
+        // Refuse a proof for a schema this deployment does not serve. The circuit pins
+        // this signal, so a real v2 proof always carries 2; anything else — a padded v1
+        // proof, a future schema — is rejected here with a named error rather than
+        // reaching the verifier and failing an opaque pairing check.
+        if (publicSignals[2] != SUPPORTED_SCHEMA_VERSION) {
+            revert SchemaVersionNotSupported(publicSignals[2], SUPPORTED_SCHEMA_VERSION);
+        }
+
         // The proof binds the holder's address into both the signed credential and the
         // nullifier. Requiring it to equal msg.sender is what makes a stolen proof
         // useless to anyone else.
-        if (publicSignals[6] != uint256(uint160(msg.sender))) {
-            revert SubjectIsNotSender(address(uint160(publicSignals[6])), msg.sender);
+        if (publicSignals[8] != uint256(uint160(msg.sender))) {
+            revert SubjectIsNotSender(address(uint160(publicSignals[8])), msg.sender);
         }
 
         // Checked here as well as in the circuit. The circuit's range check stops field
         // wraparound from forging a threshold; this stops a nonsensical parameter being
         // recorded even if a future circuit forgot to.
-        if (publicSignals[4] > MAX_MINIMUM_AGE) {
-            revert ClaimParameterOutOfRange(publicSignals[4], MAX_MINIMUM_AGE);
+        if (publicSignals[6] > MAX_MINIMUM_AGE) {
+            revert ClaimParameterOutOfRange(publicSignals[6], MAX_MINIMUM_AGE);
         }
 
-        uint32 credentialValidOn = _requireCurrentDate(publicSignals[3]);
-        bytes32 issuerId = issuerRegistry.requireActive(publicSignals[1], publicSignals[2]);
+        uint32 credentialValidOn = _requireCurrentDate(publicSignals[5]);
+        bytes32 issuerId = issuerRegistry.requireActive(publicSignals[3], publicSignals[4]);
 
-        verificationId = _reserve(CLAIM_TYPE_AGE, publicSignals[5], publicSignals[0]);
+        verificationId = _reserve(CLAIM_TYPE_AGE, publicSignals[7], publicSignals[0]);
 
-        if (!IGroth16Verifier7(verifier).verifyProof(a, b, c, publicSignals)) {
+        if (!IGroth16Verifier9(verifier).verifyProof(a, b, c, publicSignals)) {
             revert InvalidProof();
         }
 
@@ -147,10 +174,11 @@ contract AletheiaVerifier is Ownable2Step {
             msg.sender,
             CLAIM_TYPE_AGE,
             issuerId,
-            publicSignals[4],
+            publicSignals[6],
             credentialValidOn,
-            bytes32(publicSignals[5]),
+            bytes32(publicSignals[7]),
             bytes32(publicSignals[0]),
+            bytes32(publicSignals[1]),
             uint64(block.timestamp)
         );
     }
