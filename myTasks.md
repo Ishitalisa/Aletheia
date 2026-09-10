@@ -16,7 +16,9 @@ are closed.
 ### 1. Sepolia RPC endpoint
 
 - [x] Create a Sepolia endpoint (Alchemy, Infura, dRPC, or self-hosted) and put it in the
-      root `.env` as `SEPOLIA_RPC_URL`.
+  ```
+  root `.env` as `SEPOLIA_RPC_URL`.
+  ```
 
 Done when `pnpm --filter @aletheia/contracts exec node --experimental-strip-types scripts/preflight.ts`
 prints `chain id: 11155111`.
@@ -24,14 +26,17 @@ prints `chain id: 11155111`.
 ### 2. A funded deployer account
 
 - [x] Fund the deployer with Sepolia ETH from a faucet. `preflight.ts` refuses to
-      continue below **0.01 ETH**, which is sized for four contracts plus the
-      `setClaimVerifier` call.
-- [ ] Decide where the key lives, because the repository currently says two different
-      things: `.env.example` states the deployer key is *not* read from `.env` and points
-      at the Hardhat 3 keystore
-      (`hardhat keystore set SEPOLIA_PRIVATE_KEY`), while `packages/contracts/scripts/preflight.ts`
-      reads `SEPOLIA_PRIVATE_KEY` straight out of the root `.env`. One of them has to
-      change before stage 10.
+  ```
+  continue below **0.01 ETH**, which is sized for four contracts plus the
+  `setClaimVerifier` call.
+  ```
+- [x] Decide where the key lives. **Resolved: the key lives in the root `.env`.**
+  ```
+  `hardhat.config.ts` loads the root `.env` into `process.env` and resolves
+  `SEPOLIA_PRIVATE_KEY` through `configVariable`, matching `preflight.ts`, which already
+  read it from there. `.env.example` and the config comments were updated to say so, and
+  the keystore instruction was removed. Use a throwaway key.
+  ```
 
 Done when `preflight.ts` prints a deployer address and a balance above the floor, and
 exits with "pre-flight checks passed".
@@ -47,44 +52,66 @@ stage 10 gate requires verified addresses, so this is not optional.
 
 ---
 
+
+
 ## Blocking stage 12 — Subgraph
+
+
 
 ### 4. Subgraph Studio account and deploy key
 
-- [ ] Create a subgraph in [Subgraph Studio](https://thegraph.com/studio) on **Sepolia**.
-- [ ] Put the deploy key in `.env` as `GRAPH_DEPLOY_KEY`, and the query endpoint as
-      `GRAPH_QUERY_URL` once the first deploy succeeds.
+- [x] Create a subgraph in [Subgraph Studio](https://thegraph.com/studio) on **Sepolia**.
+- [x] Put the deploy key in `.env` as `GRAPH_DEPLOY_KEY`, and the query endpoint as
+  ```
+  `GRAPH_QUERY_URL` once the first deploy succeeds.
+  ```
 
 Done when the stage 11 transaction is queryable as a real entity from the Studio
 endpoint.
 
 ---
 
+
+
 ## Blocking stage 14 — ENS resolution
+
+
 
 ### 5. Mainnet RPC endpoint
 
-- [x] Create a **mainnet** endpoint and put it in `.env` as `MAINNET_RPC_URL`.
+- [ ] Create a **mainnet** endpoint and put it in `.env` as `MAINNET_RPC_URL`.
 
 Read-only, used solely to resolve ENS names through the Universal Resolver. Aletheia
 never writes to ENS and never creates ENS state.
 
 - [ ] Nominate a real ENS name to use as the resolution test case. It does not need to be
-      yours, and it must not be invented — the stage 14 gate is that a *real* name
-      resolves.
+  ```
+  yours, and it must not be invented — the stage 14 gate is that a *real* name
+  resolves.
+  ```
 
 ---
 
+
+
 ## Blocking stage 16 — Frontend
+
+
 
 ### 6. WalletConnect project id (optional)
 
 - [ ] Only needed if the frontend supports non-injected wallets. If MetaMask and other
-      injected connectors are enough, skip it and delete the variable from `.env.example`.
+  ```
+  injected connectors are enough, skip it and delete the variable from `.env.example`.
+  ```
 
 ---
 
+
+
 ## Not blocking, but a decision only you can make
+
+
 
 ### 7. The phase-1 trusted setup file
 
@@ -94,8 +121,10 @@ Tau file pinned by hash, and `docs/security.md` permits a local one only when it
 recorded as such.
 
 - [ ] Either download a published Perpetual Powers of Tau file of the right power and
-      pin its hash, or decide the local file stays for Phase 1 and say so explicitly in
-      `docs/trust-model.md`.
+  ```
+  pin its hash, or decide the local file stays for Phase 1 and say so explicitly in
+  `docs/trust-model.md`.
+  ```
 
 Either answer is defensible. Leaving it undecided is not, because the current state reads
 as a real ceremony to anyone who does not check the build output.

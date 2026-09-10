@@ -8,12 +8,14 @@ import { configVariable, defineConfig } from "hardhat/config";
 /**
  * Load the repository-root .env, if there is one.
  *
- * Hardhat 3 resolves `configVariable` from real environment variables or its encrypted
- * keystore, and does not read .env files. Node's own loader is used rather than adding
- * a dependency for it. The file is gitignored and never read by anything that prints.
+ * Hardhat 3 resolves `configVariable` from real environment variables and does not read
+ * .env files on its own. Loading the root .env into `process.env` here is what lets
+ * `SEPOLIA_PRIVATE_KEY`, `SEPOLIA_RPC_URL` and `ETHERSCAN_API_KEY` come from that file.
+ * Node's own loader is used rather than adding a dependency for it. The file is
+ * gitignored and never read by anything that prints.
  *
- * The keystore (`hardhat keystore set SEPOLIA_PRIVATE_KEY`) is the safer place for a
- * deployer key, because .env keeps it in plaintext on disk.
+ * The deployer key lives in .env (see .env.example), matching scripts/preflight.ts. It
+ * must be a throwaway key that only ever holds Sepolia faucet ETH.
  */
 const rootEnv = join(dirname(fileURLToPath(import.meta.url)), "..", "..", ".env");
 if (existsSync(rootEnv)) {
@@ -59,8 +61,8 @@ export default defineConfig({
       url: "http://127.0.0.1:8545",
       accounts: "remote",
     },
-    // Secrets come from the Hardhat keystore or the environment, never from a file in
-    // the repository. See .env.example.
+    // Secrets are loaded from the repository-root .env into the environment above, then
+    // resolved through configVariable. See .env.example.
     sepolia: {
       type: "http",
       chainType: "l1",
