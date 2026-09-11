@@ -1,5 +1,8 @@
 packages:
   - packages/*
+  # The cross-package end-to-end runner (docs/architecture.md). Top-level, not under
+  # packages/, because it depends on every package rather than being one of them.
+  - scripts
 
 # Install scripts run arbitrary code, so each one is allowed deliberately.
 allowBuilds:

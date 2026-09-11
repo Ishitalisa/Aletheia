@@ -1,6 +1,6 @@
 # Status
 
-Snapshot taken 2026-09-10. The **credential schema v1 to v2 migration (Part 0, Days
+Snapshot taken 2026-09-11. The **credential schema v1 to v2 migration (Part 0, Days
 1–4)** is complete and committed as reviewable per-area commits on top of `0ad8687`
 ("Add the Solidity verifier and the contracts that decide a claim on-chain").
 
@@ -64,8 +64,15 @@ address reverse-resolved to `vitalik.eth` and forward round-tripped back (ENSv2 
 the forward-match on-chain), a nonexistent name returned `null` rather than throwing, and a
 keccak-derived address with no reverse record returned `null` as a first-class outcome. The
 name is resolved live and stored nowhere — not on-chain, not in the subgraph
-(`docs/architecture.md`, ENS section). The next task is **Day 16**, the M1 end-to-end
-runner.
+(`docs/architecture.md`, ENS section). Day 16 is now done: the **M1 end-to-end runner**
+exists as the top-level `scripts` package and ran the whole pipeline against real
+infrastructure in one command — a `mock-dev` credential, a checked witness, a real Groth16
+proof, a local verify, a Solidity verify against the **deployed** verifier (accepts the
+real proof, rejects a mutated signal), a real `submitAgeClaim` on Sepolia (tx
+`0xc4648df4…7f313c`, block 11678827), the `ClaimVerified` event cross-checked, the subgraph
+observed `pending` then `verified`, and the indexed record read back through
+`@aletheia/query` and cross-checked against the on-chain event. The next task is **Day
+17**, MRZ parsing (Part 3, product).
 
 ## Build status
 
@@ -80,11 +87,12 @@ runner.
 | `packages/subgraph` | **6 matchstick tests passing** (Day 11); `graph codegen`/`graph build` clean, no `eth_call`; deployed to Studio (Day 12), slug `aletheia` v0.0.2, synced clean |
 | `packages/query` | **40 of 40 passing** (Day 14 done, +13 for the five-state derivation); `scripts/check.ts` and `scripts/states.ts` pass live against the deployed Studio endpoint |
 | `packages/ens` | **11 of 11 passing** (Day 15 done); pure seams unit-tested (env validation, UTS-46 name normalisation, address checksumming); `scripts/check.ts` passes live against real mainnet ENS through the Universal Resolver |
+| `scripts` | **no unit tests by design** (Day 16 done): it is the cross-package end-to-end runner, and its whole product is a live run against real infrastructure, `pnpm --filter @aletheia/scripts run m1`. `typecheck` clean. A recorded green run is below. |
 
-`packages/web` and `scripts` are named in `docs/architecture.md` and do not exist yet
-(`packages/web` is Day 20; the `scripts` M1 runner is Day 16). `packages/subgraph` exists
-with its schema, manifest, four implemented event handlers and matchstick coverage
-(Days 10–11), and is deployed to Studio (Day 12, slug `aletheia` v0.0.2, synced clean).
+`packages/web` is named in `docs/architecture.md` and does not exist yet (Day 20). The
+top-level `scripts` M1 runner now exists (Day 16). `packages/subgraph` exists with its
+schema, manifest, four implemented event handlers and matchstick coverage (Days 10–11), and
+is deployed to Studio (Day 12, slug `aletheia` v0.0.2, synced clean).
 
 ## The schema v2 migration
 
@@ -262,6 +270,37 @@ deployment is left exactly as it was — issuer active, both records verifiable.
 one process. `scripts/set-issuer-active.ts` (refuses any issuer but `mock-dev`) is the
 revoke/restore tool.
 
+## The M1 end-to-end runner (Day 16)
+
+The top-level `scripts` package (`@aletheia/scripts`) is the cross-package runner named in
+`docs/architecture.md`. One command — `pnpm --filter @aletheia/scripts run m1` — drives the
+whole pipeline against real infrastructure, in nine stages, and fails if any link is not
+genuine: signed credential, circuit (witness), proof, local verify, Solidity verify,
+Sepolia transaction, event, Graph, verifier query. It composes the shipped packages
+(`@aletheia/credential`, `@aletheia/issuer-mock`, `@aletheia/circuits`, `@aletheia/query`)
+and drives Sepolia with viem directly.
+
+Its inputs come from honest sources, never a literal: deployed addresses from the committed
+`packages/contracts/deployments/sepolia.json` (the durable copy of the gitignored Ignition
+output), cross-checked live on-chain before anything is spent; contract ABIs from the
+compiled Hardhat artifacts, so the runner drives exactly the deployed interface; secrets and
+endpoints from the root `.env`. The `mock-dev` keystore is refused if its label is anything
+else.
+
+Recorded green run (2026-09-11):
+
+| Stage | Result |
+|---|---|
+| Solidity verify | deployed `Groth16VerifierAge` (`0x369b25B5…`) accepted the real proof and rejected a mutated public signal, by `eth_call` |
+| Sepolia transaction | `submitAgeClaim` tx `0xc4648df4bd85b029bea9c4f80a3e32f0d989916ed97cbf6eac30a7cb667f313c`, block 11678827, gas 312165 |
+| event | `ClaimVerified` for verificationId `0x040bd180135e14c53028e3b80184a74f7c635f81ad1a9c0cb0b67f1b3bb9d651`, cross-checked against the proof, the simulation and the `mock-dev` issuer |
+| Graph | observed `pending / awaiting-index` (indexer at 11678826, one block behind) then `verified` once the indexer reached 11678827 |
+| verifier query | the indexed record read back `verified`, its id, nullifier, transaction hash and `mock-dev` label all matching the on-chain event |
+
+The submit left one real `Verification` on Sepolia and in the subgraph
+(`0x040bd180…3bb9d651`); it is a genuine record, not a fixture. `credentialId` and
+`identitySecret` are fresh per run, so re-running never collides with a prior record.
+
 ## Stage gates
 
 | # | Stage | State |
@@ -281,7 +320,7 @@ revoke/restore tool.
 | 12 | Subgraph | **closed** — schema, manifest, mappings and matchstick done (Days 10–11): 6 tests green, `graph codegen`/`graph build` clean, no `eth_call`; deployed to Studio (Day 12), slug `aletheia` v0.0.2, synced with no indexing errors, stage 11 `ClaimVerified` queryable as a real `Verification` |
 | 13 | GraphQL query layer | **closed** — `packages/query` reads live from the Studio endpoint: `scripts/check.ts` returned indexer block 11676205, the stage 11 `Verification` matched against its transaction hash and `mock-dev` issuer label, and the derived `Profile.verifications` side; the **five verification states** are now derived by the pure `deriveVerificationState` and all five reproduced from real endpoint data (Day 14) — a real on-chain revoke/restore for `revoked`, a real submit-and-poll for `pending`; 40 unit tests green, no mocked `fetch` (next: Day 15, ENS) |
 | 14 | ENS resolution | **closed** — `packages/ens` resolves forward and reverse through the Universal Resolver proxy over mainnet, read-only, viem 2.56: `scripts/check.ts` ran live and `vitalik.eth` → `0xd8dA…6045` with the reverse round-trip, a nonexistent name returned not-found without throwing, and a keccak-derived address with no reverse record returned null; 11 unit tests green, the name resolved live and stored nowhere |
-| — | **M1 end-to-end** | not reached; `scripts` runner does not exist |
+| — | **M1 end-to-end** | **closed** — the top-level `scripts` runner drives all nine stages against real infrastructure in one command; a green run submitted tx `0xc4648df4…7f313c` (block 11678827) and read the record back `verified` from the deployed subgraph, observing `pending` then `verified` |
 | 15 | Document extraction | not started; `docs/passport-extraction.md` written (untracked) |
 | 16 | Frontend (age only) | not started; package does not exist |
 | 17 | NationalityClaim | not started |
@@ -305,9 +344,14 @@ and the `docs/security.md` freshness refinement, committed as `53f1f36`. Day 15 
 `packages/ens` — `src/endpoint.ts` (the `MAINNET_RPC_URL` seam), `src/errors.ts`,
 `src/resolver.ts` (the forward/reverse resolver), `src/index.ts`, the two unit-test files,
 `scripts/check.ts` (the live gate), the package manifest and tsconfigs — plus the new
-`viem` workspace entry in `pnpm-lock.yaml`, committed alongside this file and `TODO.md`.
-The subgraph's `generated/` and `build/`, the `dist/` of each package, the Ignition
-deployment artifacts and all other build output remain gitignored.
+`viem` workspace entry in `pnpm-lock.yaml`, committed as `03db988`. Day 16 adds the
+top-level `scripts` package — `src/env.ts` (the Sepolia clients, the deployment-manifest
+loader and the compiled-ABI loader), `src/m1.ts` (the nine-stage runner), `package.json`,
+`tsconfig.json` and `README.md` — the committed deployment manifest
+`packages/contracts/deployments/sepolia.json`, and the `- scripts` entry in
+`pnpm-workspace.yaml` (with its `pnpm-lock.yaml` workspace entry), committed alongside this
+file and `TODO.md`. The subgraph's `generated/` and `build/`, the `dist/` of each package,
+the Ignition deployment artifacts and all other build output remain gitignored.
 
 **Toolchain note (Day 11):** the subgraph's `@graphprotocol/graph-ts` was pinned down from
 `0.38.2` to `0.35.0`. matchstick 0.6.0 is the newest matchstick release and it compiles

@@ -132,6 +132,31 @@ importers:
         specifier: 0.6.0
         version: 0.6.0
 
+  scripts:
+    dependencies:
+      '@aletheia/circuits':
+        specifier: workspace:*
+        version: link:../packages/circuits
+      '@aletheia/credential':
+        specifier: workspace:*
+        version: link:../packages/credential
+      '@aletheia/issuer-mock':
+        specifier: workspace:*
+        version: link:../packages/issuer-mock
+      '@aletheia/query':
+        specifier: workspace:*
+        version: link:../packages/query
+      viem:
+        specifier: ^2.56.3
+        version: 2.56.3(typescript@5.9.3)(zod@3.25.76)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.19.0
+        version: 22.20.1
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+
 packages:
 
   '@actions/core@3.0.1':
