@@ -12,11 +12,10 @@ import {
   generateKeypair,
   parseKeystore,
   publicKeyFor,
-  readKeystore,
   serializeKeystore,
-  writeKeystore,
   type KeystoreFile,
 } from "./keys.ts";
+import { readKeystore, writeKeystore } from "./keystore-node.ts";
 
 function tempKeystorePath(): string {
   return join(mkdtempSync(join(tmpdir(), "aletheia-issuer-")), "issuer-mock.json");

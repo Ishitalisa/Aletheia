@@ -2,10 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { after, before, describe, it } from "node:test";
 
-import {
-  loadCredentialFixture,
-  type SignedCredential,
-} from "@aletheia/credential";
+import { type SignedCredential } from "@aletheia/credential";
+import { loadCredentialFixture } from "@aletheia/credential/test-fixture";
 import {
   AGE_PUBLIC_SIGNALS,
   proveAgeClaim,

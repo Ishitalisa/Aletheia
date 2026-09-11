@@ -76,6 +76,7 @@ export {
 
 export type { CredentialSigner } from "./issuer.ts";
 
-// Test support. Exported so every package tests against one credential fixture instead
-// of drifting copies; not part of the runtime surface.
-export { loadCredentialFixture, type CredentialFixture } from "./test-fixture.ts";
+// Test support (`loadCredentialFixture`) is deliberately NOT re-exported here: it reads a
+// fixture file with `node:fs`, which would drag the filesystem into any browser bundle
+// that imports this barrel. It lives at the `@aletheia/credential/test-fixture` subpath,
+// so tests import it explicitly and the runtime surface stays browser-safe.

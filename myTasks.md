@@ -114,10 +114,17 @@ never writes to ENS and never creates ENS state.
 
 ### 6. WalletConnect project id (optional)
 
-- [ ] Only needed if the frontend supports non-injected wallets. If MetaMask and other
-  ```
-  injected connectors are enough, skip it and delete the variable from `.env.example`.
-  ```
+- [x] **Resolved: not needed.** The Day 20 holder flow (`packages/web`) uses the injected
+  wallet (MetaMask via `window.ethereum`) as its real signer, plus an optional dev
+  local-signer for headless testing. No WalletConnect / non-injected connector is used, so
+  no project id is required. `NEXT_PUBLIC_SEPOLIA_RPC_URL` and an optional
+  `NEXT_PUBLIC_DEV_SIGNER_PRIVATE_KEY` live in `packages/web/.env.local` (see
+  `packages/web/README.md`).
+
+To run the web app locally you also copy the gitignored `mock-dev` keystore into it once —
+`cp packages/issuer-mock/keys/issuer-mock.json packages/web/public/mock-issuer-keystore.json`
+— because in Phase 1 the mock issuer signs on the holder's own device. Details in
+`packages/web/README.md`.
 
 ---
 

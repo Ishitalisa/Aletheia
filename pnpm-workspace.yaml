@@ -16,3 +16,6 @@ allowBuilds:
   # tesseract.js-core and the MRZ model is committed under packages/extraction/assets —
   # so it stays off.
   tesseract.js: false
+  # sharp is Next.js' optional native image optimiser. The holder flow serves no
+  # optimised images, so its native build is not needed and stays off.
+  sharp: false

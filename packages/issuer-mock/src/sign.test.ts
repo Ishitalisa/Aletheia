@@ -3,11 +3,11 @@ import { test } from "node:test";
 
 import {
   credentialMessageHash,
-  loadCredentialFixture,
   parseSignedCredential,
   serializeSignedCredential,
   type NormalizedCredential,
 } from "@aletheia/credential";
+import { loadCredentialFixture } from "@aletheia/credential/test-fixture";
 
 import { generateKeypair, publicKeyFor } from "./keys.ts";
 import { createMockIssuer, isSignedBy, signCredential, verifySignedCredential } from "./sign.ts";
