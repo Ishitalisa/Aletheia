@@ -22,12 +22,15 @@ export {
 } from "./field.ts";
 
 export {
+  MAX_DOCUMENT_HOLDER_AGE,
   MAX_MINIMUM_AGE,
   ageThresholdYyyymmdd,
   assertValidYyyymmdd,
   completedYears,
   dateToYyyymmdd,
   daysInMonth,
+  expandExpiryYymmdd,
+  inferBirthYymmdd,
   isLeapYear,
   isUnexpired,
   isValidYyyymmdd,
@@ -37,8 +40,14 @@ export {
   todayUtcYyyymmdd,
   toYyyymmdd,
   yyyymmddToDate,
+  type BirthCenturyInference,
   type CalendarDate,
 } from "./date.ts";
+
+export {
+  alpha3ToCountryCode,
+  isSupportedAlpha3,
+} from "./nationality.ts";
 
 export {
   MAX_COUNTRY_CODE,

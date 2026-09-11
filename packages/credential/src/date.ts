@@ -135,3 +135,73 @@ export function completedYears(dateOfBirth: number, currentDate: number): number
   assertValidYyyymmdd(currentDate, "currentDate");
   return Math.trunc((currentDate - dateOfBirth) / 10000);
 }
+
+/**
+ * The oldest a living passport holder is assumed to be. A birth date more than this many
+ * years before `currentDate` is treated as not belonging to a current holder, which is
+ * what lets century inference rule out the 19xx reading for a recent two-digit year.
+ * Sized above the verified human maximum (~122) so a real centenarian's document is never
+ * silently rejected — it is reported *ambiguous* instead.
+ */
+export const MAX_DOCUMENT_HOLDER_AGE = 120;
+
+/**
+ * The outcome of inferring the century of an MRZ two-digit year for a date of birth.
+ * `ambiguous` means both the 19xx and 20xx readings are plausible living holders and the
+ * caller must ask rather than guess; `invalid` means neither reading is a real in-range
+ * date that is not in the future. See `docs/passport-extraction.md`.
+ */
+export type BirthCenturyInference =
+  | { kind: "resolved"; value: number }
+  | { kind: "ambiguous" }
+  | { kind: "invalid" };
+
+/** A raw year/month/day, century not yet known, as read from six MRZ digits. */
+function candidateYyyymmdd(year: number, month: number, day: number): number {
+  return year * 10000 + month * 100 + day;
+}
+
+/**
+ * Expand an MRZ expiry `YYMMDD` to canonical YYYYMMDD. Expiry is always `20YY`: a passport
+ * in circulation cannot have expired in the 1900s (`docs/passport-extraction.md`). Throws
+ * `RangeError` if the digits are not a real UTC date in range — an expiry has no century
+ * ambiguity, so an unparseable one is simply invalid.
+ */
+export function expandExpiryYymmdd(twoDigitYear: number, month: number, day: number): number {
+  return toYyyymmdd({ year: 2000 + twoDigitYear, month, day });
+}
+
+/**
+ * Infer the century of an MRZ date-of-birth `YYMMDD` against `currentDate`.
+ *
+ * The rule (fixed in `docs/passport-extraction.md`, not left to the parser, because a
+ * wrong century silently shifts an age claim by 100 years): a reading is a possible birth
+ * date only if it is a real calendar date, is not in the future, and is no more than
+ * {@link MAX_DOCUMENT_HOLDER_AGE} years ago. When exactly one of the `19YY` / `20YY`
+ * readings qualifies it is chosen; when both qualify — the holder is at or over 100 and
+ * the two readings are a century apart — the result is `ambiguous` and must never be
+ * guessed; when neither qualifies it is `invalid`.
+ *
+ * Both readings are evaluated independently, so a Feb-29 date valid in one century's leap
+ * year and not the other resolves correctly.
+ */
+export function inferBirthYymmdd(
+  twoDigitYear: number,
+  month: number,
+  day: number,
+  currentDate: number,
+): BirthCenturyInference {
+  assertValidYyyymmdd(currentDate, "currentDate");
+  const nineteen = candidateYyyymmdd(1900 + twoDigitYear, month, day);
+  const twenty = candidateYyyymmdd(2000 + twoDigitYear, month, day);
+  const plausible = (value: number): boolean =>
+    isValidYyyymmdd(value) &&
+    value <= currentDate &&
+    completedYears(value, currentDate) <= MAX_DOCUMENT_HOLDER_AGE;
+  const nineteenOk = plausible(nineteen);
+  const twentyOk = plausible(twenty);
+  if (nineteenOk && twentyOk) return { kind: "ambiguous" };
+  if (twentyOk) return { kind: "resolved", value: twenty };
+  if (nineteenOk) return { kind: "resolved", value: nineteen };
+  return { kind: "invalid" };
+}

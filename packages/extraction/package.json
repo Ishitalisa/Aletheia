@@ -1,0 +1,30 @@
+{
+  "name": "@aletheia/extraction",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Client-side document extraction. Turns an untrusted TD3 passport MRZ into candidate credential fields, with ICAO check digits, century inference and the nationality mapping. Produces candidate fields, never evidence; holds no key and touches no network.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --experimental-strip-types --test \"src/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@aletheia/credential": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "typescript": "^5.9.2"
+  }
+}

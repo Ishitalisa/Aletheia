@@ -71,8 +71,18 @@ proof, a local verify, a Solidity verify against the **deployed** verifier (acce
 real proof, rejects a mutated signal), a real `submitAgeClaim` on Sepolia (tx
 `0xc4648df4…7f313c`, block 11678827), the `ClaimVerified` event cross-checked, the subgraph
 observed `pending` then `verified`, and the indexed record read back through
-`@aletheia/query` and cross-checked against the on-chain event. The next task is **Day
-17**, MRZ parsing (Part 3, product).
+`@aletheia/query` and cross-checked against the on-chain event. Day 17 is now done: MRZ
+parsing (Part 3, product). `packages/extraction` turns an untrusted TD3 passport MRZ into
+candidate credential fields — ICAO `7-3-1` check digits (validated against the published
+ICAO 9303 specimen, not against themselves), century inference that reports *ambiguous*
+rather than guessing, and the sex code — while the ICAO alpha-3 → ISO 3166-1 numeric
+**nationality table** and the century-inference rule live in `packages/credential` so one
+module owns every encoding. A valid Indian fixture extracts all fields; a corrupted check
+digit reports **which** field failed; a would-be-centenarian date of birth returns
+*ambiguous* and an ICAO code with no ISO numeric (e.g. the specimen's `UTO`) returns
+*unsupported* — neither is ever guessed. Extraction produces candidate fields, never
+evidence: it holds no key and touches no network. The next task is **Day 18**, image and
+PDF input in a worker (Part 3, product).
 
 ## Build status
 
@@ -80,17 +90,20 @@ observed `pending` then `verified`, and the indexed record read back through
 
 | Package | Result |
 |---|---|
-| `packages/credential` | **36 of 36 passing** (Day 1 done) |
+| `packages/credential` | **52 of 52 passing** (Day 1 done; +16 for Day 17 — the nationality alpha-3 → ISO 3166-1 table and the century-inference rule) |
 | `packages/issuer-mock` | **18 passing** (a stale v1 malformed-credential test was fixed during Day 4) |
 | `packages/circuits` | **26 of 26 passing** |
 | `packages/contracts` | **46 passing** (Day 6 done; +1 for the leap-year-boundary sweep) |
 | `packages/subgraph` | **6 matchstick tests passing** (Day 11); `graph codegen`/`graph build` clean, no `eth_call`; deployed to Studio (Day 12), slug `aletheia` v0.0.2, synced clean |
 | `packages/query` | **40 of 40 passing** (Day 14 done, +13 for the five-state derivation); `scripts/check.ts` and `scripts/states.ts` pass live against the deployed Studio endpoint |
 | `packages/ens` | **11 of 11 passing** (Day 15 done); pure seams unit-tested (env validation, UTS-46 name normalisation, address checksumming); `scripts/check.ts` passes live against real mainnet ENS through the Universal Resolver |
+| `packages/extraction` | **18 of 18 passing** (Day 17 done): TD3 MRZ parsing, check digits anchored to the ICAO 9303 specimen, century inference, sex; a valid Indian fixture extracts, a failing check digit names its field, ambiguous century and unmapped nationality return without guessing. `typecheck`/`build` clean. |
 | `scripts` | **no unit tests by design** (Day 16 done): it is the cross-package end-to-end runner, and its whole product is a live run against real infrastructure, `pnpm --filter @aletheia/scripts run m1`. `typecheck` clean. A recorded green run is below. |
 
-`packages/web` is named in `docs/architecture.md` and does not exist yet (Day 20). The
-top-level `scripts` M1 runner now exists (Day 16). `packages/subgraph` exists with its
+`packages/web` is named in `docs/architecture.md` and does not exist yet (Day 20);
+`packages/extraction` (Day 17) is the pure MRZ parser it will consume, split out so it is
+buildable and testable without a browser. The top-level `scripts` M1 runner exists (Day
+16). `packages/subgraph` exists with its
 schema, manifest, four implemented event handlers and matchstick coverage (Days 10–11), and
 is deployed to Studio (Day 12, slug `aletheia` v0.0.2, synced clean).
 
@@ -321,7 +334,7 @@ The submit left one real `Verification` on Sepolia and in the subgraph
 | 13 | GraphQL query layer | **closed** — `packages/query` reads live from the Studio endpoint: `scripts/check.ts` returned indexer block 11676205, the stage 11 `Verification` matched against its transaction hash and `mock-dev` issuer label, and the derived `Profile.verifications` side; the **five verification states** are now derived by the pure `deriveVerificationState` and all five reproduced from real endpoint data (Day 14) — a real on-chain revoke/restore for `revoked`, a real submit-and-poll for `pending`; 40 unit tests green, no mocked `fetch` (next: Day 15, ENS) |
 | 14 | ENS resolution | **closed** — `packages/ens` resolves forward and reverse through the Universal Resolver proxy over mainnet, read-only, viem 2.56: `scripts/check.ts` ran live and `vitalik.eth` → `0xd8dA…6045` with the reverse round-trip, a nonexistent name returned not-found without throwing, and a keccak-derived address with no reverse record returned null; 11 unit tests green, the name resolved live and stored nowhere |
 | — | **M1 end-to-end** | **closed** — the top-level `scripts` runner drives all nine stages against real infrastructure in one command; a green run submitted tx `0xc4648df4…7f313c` (block 11678827) and read the record back `verified` from the deployed subgraph, observing `pending` then `verified` |
-| 15 | Document extraction | not started; `docs/passport-extraction.md` written (untracked) |
+| 15 | Document extraction | **MRZ parsing closed (Day 17)** — `packages/extraction` parses a TD3 MRZ into candidate fields: an Indian fixture extracts, a failing check digit names its field, an ambiguous century and an unmapped nationality return without guessing; check digits validated against the ICAO 9303 specimen; 18 tests green. Image/PDF input in a worker (Day 18) and `documentKey` (Day 19) remain |
 | 16 | Frontend (age only) | not started; package does not exist |
 | 17 | NationalityClaim | not started |
 | 18 | ExpiryClaim | not started |
@@ -350,8 +363,14 @@ loader and the compiled-ABI loader), `src/m1.ts` (the nine-stage runner), `packa
 `tsconfig.json` and `README.md` — the committed deployment manifest
 `packages/contracts/deployments/sepolia.json`, and the `- scripts` entry in
 `pnpm-workspace.yaml` (with its `pnpm-lock.yaml` workspace entry), committed alongside this
-file and `TODO.md`. The subgraph's `generated/` and `build/`, the `dist/` of each package,
-the Ignition deployment artifacts and all other build output remain gitignored.
+file and `TODO.md`. Day 17 adds `packages/extraction` — `src/checkdigit.ts` (the ICAO
+`7-3-1` scheme), `src/mrz.ts` (the TD3 parser and its result type), `src/index.ts`, the two
+unit-test files, and the package manifest and tsconfigs — plus, in `packages/credential`,
+`src/nationality.ts` (the alpha-3 → ISO 3166-1 table), the century-inference functions in
+`src/date.ts`, their tests (`nationality.test.ts`, `century.test.ts`), and the new
+`src/index.ts` exports. `docs/passport-extraction.md` was already tracked. The subgraph's
+`generated/` and `build/`, the `dist/` of each package, the Ignition deployment artifacts
+and all other build output remain gitignored.
 
 **Toolchain note (Day 11):** the subgraph's `@graphprotocol/graph-ts` was pinned down from
 `0.38.2` to `0.35.0`. matchstick 0.6.0 is the newest matchstick release and it compiles
