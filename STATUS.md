@@ -128,8 +128,13 @@ Etherscan/Sourcify-verified, the subgraph redeployed as v0.0.3 indexing the new 
 verifiers together (Decision 2), and a holder-flow nationality path with a pre-proof
 disclosure (Day 24). A live browser run proved and submitted a real nationality claim
 (`0x7977b9…`, block 11681828) and the verifier flow rendered it `verified`; the subgraph now
-returns the five historical age records and the new nationality record. **Next: Day 25**,
-`expiry.circom`.
+returns the five historical age records and the new nationality record.
+
+Day 25 is now done: **`expiry.circom`** on the shared base. The inherited
+`expiryDate >= currentDate` check is the whole claim, the generic parameter slot is pinned
+to zero to keep one nine-signal layout, constraints are locked, and the `expiryDate ==
+currentDate` boundary is verified on both sides (13 tests). Circuits are 53/53. **Next: Day
+26**, the expiry setup, verifier, contract and deploy.
 
 Day 21 is now done: the **verifier flow** (`packages/web`, `/verify`). It resolves an ENS
 name (forward) or a typed address (with a best-effort reverse-name lookup) live over
@@ -157,7 +162,7 @@ in the client bundle.
 |---|---|
 | `packages/credential` | **52 of 52 passing** (Day 1 done; +16 for Day 17 — the nationality alpha-3 → ISO 3166-1 table and the century-inference rule) |
 | `packages/issuer-mock` | **18 passing** (a stale v1 malformed-credential test was fixed during Day 4) |
-| `packages/circuits` | **40 of 40 passing** (Day 22 added `nationality.circom` on the shared base, +14): `requiredNationality === nationality` in the generic parameter slot, nine-signal layout, 8586+2202 constraints locked; positive from a real signature, nullifier/identity cross-checks against the pinned fixture, and the full negative suite (wrong nationality, tampered field, wrong issuer, expired credential, stolen wallet, forged signature, out-of-range). Compiles `--inspect` clean. Setup/verifier/contract are Day 23 |
+| `packages/circuits` | **53 of 53 passing**. Day 22 added `nationality.circom` on the shared base (+14: `requiredNationality === nationality`, full negative suite); Day 25 added `expiry.circom` (+13): the base `expiryDate >= currentDate` check is the whole claim, the generic parameter slot pinned to zero, 8570+2202 constraints locked, and the `expiryDate == currentDate` boundary verified on both sides. All three circuits compile `--inspect` clean; all three constraint locks asserted. Nationality has its setup/verifier/contract (Day 23); expiry's are Day 26 |
 | `packages/contracts` | **67 passing** (Day 23 added the nationality claim, +21): `submitNationalityClaim` on a shared `_submitClaim` (age behaviour unchanged), `Groth16VerifierNationality.sol` generated and asserted against the proving key, the nine-signal layout frozen and cross-checked, and the shared identityNullifier proven identical across an age and a nationality claim in one context. Day 6 `DateLib` sweep still green |
 | `packages/subgraph` | **6 matchstick tests passing** (Day 11); `graph codegen`/`graph build` clean, no `eth_call`. Redeployed to Studio as **v0.0.3** (Day 24): two `AletheiaVerifier` data sources — the redeployed verifier and the previous one — share one mapping so the stage-17 redeploy keeps the historical age records (Decision 2). Synced clean; the endpoint returns five age records plus the new nationality record |
 | `packages/query` | **40 of 40 passing** (Day 14 done, +13 for the five-state derivation); `scripts/check.ts` and `scripts/states.ts` pass live against the deployed Studio endpoint. Day 21 added a `./browser` entry (the root-`.env` loader split into `root-env.ts`, the Node barrel wraps the factory to call it) so the verifier flow can read the subgraph in the browser |
@@ -404,7 +409,7 @@ The submit left one real `Verification` on Sepolia and in the subgraph
 | 15 | Document extraction | **closed** — `packages/extraction` parses a TD3 MRZ into candidate fields (Day 17: Indian fixture extracts, a failing check digit names its field, an ambiguous century and unmapped nationality return without guessing; ICAO 9303 specimen anchor), converges typed/image/PDF input on the one parser in a worker with zero network and input caps (Day 18), and derives `documentKey` — a stable on-device field element identifying one passport, feeding `deriveIdentitySecret` (Day 19); 44 tests green |
 | 16 | Frontend (age only) | **closed (Days 20–21)** — `packages/web` (Next.js). Holder flow: extracts, enforces a mandatory review, signs mock-dev on-device, proves age in-browser (snarkjs), and submits to Sepolia; a live run produced tx `0xcdadf4…24044a` (block 11680359) with the passport never leaving the device. Verifier flow (`/verify`): resolves ENS/address, reads the subgraph, renders the five verification states — `verified`, `stale`, `not found` and `pending` driven live in a browser against the deployed subgraph, `revoked` the same rendering path; pending is shown before verified and a submitted tx is never rendered verified before its record exists |
 | 17 | NationalityClaim | **closed (Days 22–24)** — `nationality.circom` on the shared base (14 tests), phase-2 setup over the local-development ptau, `Groth16VerifierNationality.sol` generated and asserted against the proving key, `submitNationalityClaim` on a shared `_submitClaim` (age unchanged), layout frozen and cross-checked; contracts 67/67. Day 24: `AletheiaVerifier` redeployed live (`0xce95C4…`) with the new nationality verifier (`0xB559D2…`), both Etherscan/Sourcify-verified; subgraph redeployed as v0.0.3 indexing the new and previous verifiers so old age records survive (Decision 2); the holder flow proves nationality with a pre-proof disclosure. Driven live end to end: a real in-browser nationality proof submitted (`0x7977b9…`, block 11681828) and rendered `verified` — the endpoint now returns five age records and one nationality record |
-| 18 | ExpiryClaim | not started |
+| 18 | ExpiryClaim | **circuit done (Day 25)** — `expiry.circom` on the shared base; the inherited `expiryDate >= currentDate` check is the whole claim, the generic parameter slot pinned to zero, nine-signal layout, constraints locked, `--inspect` clean, 13 tests green including the `expiryDate == currentDate` boundary on both sides. Setup, generated verifier, contract and deploy remain (Day 26) |
 | 19 | Multi-claim end-to-end | not started |
 | 20 | Security testing | not started; `docs/security.md` threat table written with a `Verified by` column to close |
 | 21 | Documentation | not started |

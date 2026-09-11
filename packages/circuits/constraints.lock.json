@@ -23,6 +23,14 @@
       "privateInputs": 9,
       "publicOutputs": 2,
       "wires": 10783
+    },
+    "expiry": {
+      "nonLinearConstraints": 8570,
+      "linearConstraints": 2202,
+      "publicInputs": 7,
+      "privateInputs": 9,
+      "publicOutputs": 2,
+      "wires": 10768
     }
   }
 }

@@ -571,10 +571,24 @@ run all real; `next build` clean; full workspace typecheck green.
 
 ## Day 25 — Stage 18: `expiry.circom`
 
-- [ ] The base expiry check is the whole claim; parameter pinned to zero.
+- [x] The base expiry check is the whole claim; parameter pinned to zero.
 
 **Exit criteria** — compiles clean, constraints locked, and the `expiryDate ==
-currentDate` boundary passes on both sides.
+currentDate` boundary passes on both sides. **Met** — `circuits/expiry.circom` instantiates
+`CredentialClaimBase(2, 3)` (schema v2, claim type 3) and adds no statement of its own: the
+base's `expiryDate >= currentDate` check *is* the whole claim. The generic parameter slot
+(`expiryParameter`, index 6) is pinned in-circuit to zero, so all three claim types keep one
+nine-signal layout. It compiles `--inspect` clean (the smallest circuit, 8570 non-linear +
+2202 linear), pinned in `constraints.lock.json` and asserted by test. `test/expiry.test.ts`
+(13 tests) covers the positive case from a real signature, the claim-type-3 nullifier
+cross-check and the shared identity nullifier, the nine-signal order with slot 6 = 0, the
+schemaVersion pin, the parameter-is-zero pin (non-zero rejected), the standard negatives
+(tampered field, wrong issuer, stolen wallet, forged signature, out-of-range currentDate),
+and — the exit criterion — the boundary: a credential expiring exactly on `currentDate`
+verifies, the day before (currentDate earlier) verifies, and the day after (currentDate
+past expiry) is rejected. Full circuits suite **53/53** (up from 40); all three constraint
+locks match; circuits typecheck green. Trusted setup, generated verifier, contract and
+deploy are Day 26 (out of this window's scope).
 
 ## Day 26 — Stage 18: setup, verifier, contract, deploy
 
