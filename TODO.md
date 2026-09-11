@@ -311,11 +311,27 @@ green on the pure seams (env validation, UTS-46 name normalisation, address chec
 
 ## Day 16 — M1: the end-to-end runner
 
-- [ ] Create `scripts`. One command: signed credential, circuit, proof, local verify,
+- [x] Create `scripts`. One command: signed credential, circuit, proof, local verify,
       Solidity verify, Sepolia transaction, event, Graph, verifier query.
 
 **Exit criteria** — the command completes against real infrastructure, start to finish,
 from a clean checkout, printing the real transaction hash and the real indexed record.
+**Met** — top-level `scripts` package (`@aletheia/scripts`), one command
+`pnpm --filter @aletheia/scripts run m1`, ran the nine stages end to end against real
+infrastructure. Signed a `mock-dev` credential; computed and checked the witness against
+`age.r1cs`; produced a real Groth16 proof; verified it locally; asked the **deployed**
+`Groth16VerifierAge` by `eth_call`, which accepted the real proof and rejected a mutated
+public signal; simulated then submitted `submitAgeClaim` on Sepolia (tx
+`0xc4648df4…7f313c`, block 11678827, gas 312165); read the `ClaimVerified` event back and
+cross-checked it against the proof, the simulation and the registered `mock-dev` issuer;
+polled the deployed subgraph and **observed the record `pending / awaiting-index` (indexer
+one block behind) then `verified`**; and read the indexed record back through
+`@aletheia/query`, classified `verified`, with its id, nullifier, transaction hash and
+`mock-dev` issuer label all cross-checked against the on-chain event (verificationId /
+record `0x040bd180…3bb9d651`). Addresses come from the committed
+`packages/contracts/deployments/sepolia.json` and are cross-checked live on-chain (code
+present, `SUPPORTED_SCHEMA_VERSION == 2`, `claimVerifier[1]` matches); ABIs come from the
+compiled artifacts, so nothing is a literal or a stub.
 
 **Nationality and expiry do not begin before this passes.**
 
