@@ -37,8 +37,9 @@ export type MrzSex = "M" | "F" | "X";
 export interface Td3CandidateFields {
   /**
    * The passport number, filler stripped. Validated by its check digit and surfaced for
-   * the review step, then **discarded**: schema v1 has no field for it, so it is never
-   * signed, stored, or used as a proof input (`docs/passport-extraction.md`).
+   * the review step. It is never signed, stored on any wire, or used as a public proof
+   * input as itself; its one use is as an input to `documentKey` — a private, on-device
+   * intermediate — via {@link deriveDocumentKey} (`docs/passport-extraction.md`).
    */
   documentNumber: string;
   /** The ICAO alpha-3 nationality code exactly as read, for display alongside the map. */

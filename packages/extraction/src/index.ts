@@ -18,6 +18,12 @@ export {
 
 export { findMrzLines, pairTd3Lines } from "./mrz-lines.ts";
 
+export {
+  DOCUMENT_KEY_DOMAIN,
+  deriveDocumentKey,
+  type DocumentIdentity,
+} from "./document-key.ts";
+
 export { MAX_DOCUMENT_BYTES, MAX_PDF_PAGES } from "./caps.ts";
 
 export {

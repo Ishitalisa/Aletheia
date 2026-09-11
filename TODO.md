@@ -396,11 +396,25 @@ and `build` clean; the built `dist` was smoke-tested on both fixtures.
 
 `deriveIdentitySecret` already expects a `documentKey` and nothing produces one.
 
-- [ ] Derive it in the extraction layer, which is the only layer that knows the document
+- [x] Derive it in the extraction layer, which is the only layer that knows the document
       format.
 
 **Exit criteria** — the same passport yields the same `documentKey` twice; two different
-passports never collide; it is a field element; it never leaves the device.
+passports never collide; it is a field element; it never leaves the device. **Met** —
+`packages/extraction/src/document-key.ts` adds `deriveDocumentKey`, a pure offline function
+that hashes the four stable identifying fields of a TD3 passport — issuing nationality,
+document number, date of birth, date of expiry (the ICAO chip-key tuple plus nationality
+to disambiguate a reused number) — under a domain-separated, unambiguously framed SHA-256,
+reduced into the bn128 field with `hashToField` (leading 31 bytes). The four properties
+are gated by test (`document-key.test.ts`): a pinned fixture vector so the derivation
+cannot drift; the same passport → same key, both directly and re-parsed twice through the
+real `parseTd3Mrz`; four independently-differing passports all distinct, plus a
+field-framing test that a shifted boundary cannot alias; canonical non-zero field element
+below the modulus and below 2^248; and it never leaves the device (pure, no key, no
+network). It flows straight into `deriveIdentitySecret({ issuerSalt, documentKey })`,
+confirmed. Wiring it into the holder flow is Day 20. `pnpm --filter @aletheia/extraction
+test` is 44/44 (up from 32); `typecheck` and `build` clean, built `dist` smoke-tested;
+`pnpm -r run typecheck` green.
 
 ## Day 20 — Stage 16: holder flow
 

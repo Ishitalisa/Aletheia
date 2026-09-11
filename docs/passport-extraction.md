@@ -32,7 +32,7 @@ TD3 line 2 positions, and where each lands in schema v1:
 
 | MRZ field | Positions | Schema v1 field | Transformation |
 |---|---|---|---|
-| Passport number | 1-9 | — | validated, then discarded; see below |
+| Passport number | 1-9 | — | validated, then consumed on-device to derive `documentKey`; never signed or stored as itself. See below |
 | Check digit | 10 | — | validates the number |
 | Nationality | 11-13 | `nationality` | alpha-3 → ISO 3166-1 numeric |
 | Date of birth | 14-19 | `dateOfBirth` | `YYMMDD` → `YYYYMMDD`, century inferred |
@@ -98,21 +98,51 @@ check digit means the text was read correctly; it does not mean the passport is 
 
 ## Passport number
 
-The number is read and validated — format plus its check digit — and then **discarded**.
-It is not stored, not signed, and not a proof input.
+The number is read and validated — format plus its check digit — and then, as itself,
+**never leaves this layer**. It is not signed, not stored on any wire, and never a public
+proof input. It is not a schema field: `Poseidon(8)` has no slot for it. Its one use is as
+an input to `documentKey` (next section), a private on-device intermediate.
 
-This follows from schema v1 having no field for it. Adding one would mean a new signed
-message layout (`Poseidon(8)`), recompiled circuits, and newly deployed verifiers, which
-is a schema v2 project rather than a passport-extraction detail.
-
-It is also worth being clear about what proving anything over the number would buy, which
-is less than it sounds. Proving "my document number has valid check digits" proves
-nothing, for the reason above. Proving "my document number is *X*" discloses it. The one
-genuinely valuable use — one person, one verification — must not be built on this field
-either; `docs/credential-schema.md` explains why, and what the correct mechanism is.
+It is worth being clear about what proving anything over the number *directly* would buy,
+which is less than it sounds. Proving "my document number has valid check digits" proves
+nothing — the algorithm is public. Proving "my document number is *X*" discloses it. The
+one genuinely valuable use — one person, one verification — is not built on the raw number
+either; it is built on `documentKey` behind the issuer's secret salt, which is exactly the
+mechanism `docs/credential-schema.md` describes (`identitySecret`, `identityNullifier`).
 
 Validating the number is still worth doing, because a number that fails its check digit
 is strong evidence the whole MRZ read badly, including the date of birth.
+
+## Document key
+
+`documentKey` is a stable field element identifying one physical passport, derived here
+because this is the only layer that knows the document format. It is the input
+`deriveIdentitySecret({ issuerSalt, documentKey })` expects, and
+`identitySecret = Poseidon([issuerSalt, documentKey])` is what makes two credentials the
+same issuer derives from the same passport share an `identityNullifier` within a context
+(`docs/credential-schema.md`). `packages/extraction/src/document-key.ts` is the executable
+form; four properties define it, and each is a stage-19 gate:
+
+- **Deterministic.** The same passport, typed or scanned twice, yields the same key,
+  because the input is the *normalized* candidate fields, not the raw glyphs. Two reads
+  that both extract successfully agree by construction.
+- **Collision-free across documents.** It hashes the four fields that together identify
+  the booklet — issuing nationality, document number, date of birth, date of expiry: the
+  tuple (number, DOB, expiry) ICAO itself derives the chip access key from, plus
+  nationality to disambiguate a number reused across issuers. Two distinct passports would
+  have to agree on all four to collide.
+- **A field element.** A domain-separated SHA-256 digest reduced into the bn128 scalar
+  field the same way every other 32-byte digest here is (`hashToField`, leading 31 bytes),
+  so it is always canonical and non-zero.
+- **On-device only.** The derivation is pure and offline. Because `issuerSalt` is the
+  issuer's secret, the credential cannot be run backwards to the document, and two issuers
+  derive unrelated secrets from the same passport.
+
+Derivation runs **after** the mandatory review step, on the fields the holder confirmed —
+not on unreviewed OCR — since extraction produces untrusted candidate fields. A renewed
+passport is a different booklet (new number, new expiry) and derives a new `documentKey`,
+consistent with `identitySecret` being stable only "across credentials the same issuer
+derives from the same document".
 
 ## Expiry semantics
 
