@@ -36,9 +36,38 @@ private value is absent from the public signals.
 reuse this same nine-signal layout with a different name for that slot, so every claim
 type decodes identically.
 
-## NationalityClaim (`claimTypeId = 2`)
+## NationalityClaim (`claimTypeId = 2`, schema version 2)
 
-Pending stage 17.
+The same nine-signal v2 layout as AgeClaim, so a proof decodes identically on-chain — only
+the generic claim-parameter slot at index 6 is renamed, from `minimumAge` to
+`requiredNationality`. Verified empirically against the compiled artifacts, not assumed: the
+witness layout is asserted in `packages/circuits/test/nationality.test.ts`, and the
+agreement of this table with `NATIONALITY_PUBLIC_SIGNALS`, the generated verifier
+`Groth16VerifierNationality` and `AletheiaVerifier.submitNationalityClaim` in
+`packages/contracts/test/PublicSignalsLayout.ts`.
+
+Unlike age, a nationality proof **discloses** the value in the parameter slot: a successful
+proof establishes that the holder's nationality is exactly `requiredNationality`. It reveals
+nothing else in the credential. The holder is shown this before proving — see the Day 24
+disclosure notice and `docs/trust-model.md`.
+
+| Index | Signal | Kind | Notes |
+|---|---|---|---|
+| 0 | `nullifier` | output | `Poseidon(credentialId, 2, contextId, subject)`; per credential, claim type and context. Claim type 2 makes it distinct from the same credential's age nullifier |
+| 1 | `identityNullifier` | output | `Poseidon(identitySecret, contextId)`; identical to the age claim's for one identity in one context, because no claim type enters it — see `docs/trust-model.md` |
+| 2 | `schemaVersion` | input | pinned in-circuit to the compiled constant (`2`); `AletheiaVerifier` refuses a version it was not deployed for |
+| 3 | `issuerAx` | input | issuer BabyJubjub key x; checked against `AletheiaIssuerRegistry` |
+| 4 | `issuerAy` | input | issuer BabyJubjub key y |
+| 5 | `currentDate` | input | YYYYMMDD; contract accepts only today or yesterday UTC |
+| 6 | `requiredNationality` | input | the ISO 3166-1 numeric code the verifier is asking about, `1..999`; the generic claim-parameter slot age uses for `minimumAge`. The circuit forces it equal to the credential's signed nationality, so a successful proof discloses it |
+| 7 | `contextId` | input | verifier scope tag, reduced into the field |
+| 8 | `subject` | input | holder address as `uint160`; contract requires `== msg.sender` |
+
+Nine signals total, decoded as `uint[9]` by the generated verifier, exactly like AgeClaim.
+No private credential field appears: the date of birth, expiry, issuance date, credential
+id and `identitySecret` stay in the witness. The nationality is the one value the claim is
+designed to reveal, and it appears only because the verifier put it in `requiredNationality`
+and the proof confirmed it — the credential's own nationality field never leaves the witness.
 
 ## ExpiryClaim (`claimTypeId = 3`)
 

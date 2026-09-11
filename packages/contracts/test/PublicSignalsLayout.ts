@@ -19,22 +19,23 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 
-import { AGE_PUBLIC_SIGNALS } from "@aletheia/circuits";
+import { AGE_PUBLIC_SIGNALS, NATIONALITY_PUBLIC_SIGNALS } from "@aletheia/circuits";
 
 const read = (relative: string): string =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
 
 const publicSignalsDoc = read("../../../docs/public-signals.md");
 const groth16Source = read("../contracts/verifiers/Groth16VerifierAge.sol");
+const groth16NationalitySource = read("../contracts/verifiers/Groth16VerifierNationality.sol");
 const aletheiaSource = read("../contracts/AletheiaVerifier.sol");
 
 /** The expected layout, as an ordinary array, so the assertions read plainly. */
 const LAYOUT = [...AGE_PUBLIC_SIGNALS];
 
-/** Signal names from the AgeClaim table in `docs/public-signals.md`, in index order. */
-function layoutFromDoc(markdown: string): string[] {
-  const start = markdown.indexOf("## AgeClaim");
-  assert.notEqual(start, -1, "docs/public-signals.md has no AgeClaim section");
+/** Signal names from a claim's table in `docs/public-signals.md`, in index order. */
+function layoutFromDoc(markdown: string, heading: string): string[] {
+  const start = markdown.indexOf(heading);
+  assert.notEqual(start, -1, `docs/public-signals.md has no ${heading} section`);
   const section = markdown.slice(start, markdown.indexOf("\n## ", start + 1));
 
   const rows: Array<{ index: number; name: string }> = [];
@@ -44,7 +45,7 @@ function layoutFromDoc(markdown: string): string[] {
   }
   // The table must number its rows 0..n-1 with no gaps, or "decode by index" is a lie.
   rows.forEach((row, position) =>
-    assert.equal(row.index, position, `AgeClaim table row ${position} is labelled index ${row.index}`),
+    assert.equal(row.index, position, `${heading} table row ${position} is labelled index ${row.index}`),
   );
   return rows.map((row) => row.name);
 }
@@ -67,7 +68,7 @@ function calldataArity(source: string, pattern: RegExp): number {
 
 describe("AgeClaim public-signal layout agreement", () => {
   it("docs/public-signals.md lists exactly the AGE_PUBLIC_SIGNALS order", () => {
-    assert.deepEqual(layoutFromDoc(publicSignalsDoc), LAYOUT);
+    assert.deepEqual(layoutFromDoc(publicSignalsDoc, "## AgeClaim"), LAYOUT);
   });
 
   it("the generated verifier takes one uint per signal", () => {
@@ -102,6 +103,47 @@ describe("AgeClaim public-signal layout agreement", () => {
       [...readIndices].sort((a, b) => a - b),
       [...expected].sort((a, b) => a - b),
       "submitAgeClaim reads a set of signal indices that is not exactly 0..8",
+    );
+  });
+});
+
+describe("NationalityClaim public-signal layout agreement", () => {
+  const NATIONALITY_LAYOUT = [...NATIONALITY_PUBLIC_SIGNALS];
+
+  it("is the same nine-signal layout as age, with only the generic slot renamed", () => {
+    // The invariant that lets AletheiaVerifier route both claims through one nine-signal
+    // decode: every index is identical except slot 6, which age calls `minimumAge` and
+    // nationality calls `requiredNationality`.
+    assert.equal(NATIONALITY_LAYOUT.length, LAYOUT.length);
+    NATIONALITY_LAYOUT.forEach((name, index) => {
+      if (index === 6) {
+        assert.equal(name, "requiredNationality");
+        assert.equal(LAYOUT[index], "minimumAge");
+      } else {
+        assert.equal(name, LAYOUT[index], `slot ${index} must match the age layout`);
+      }
+    });
+  });
+
+  it("docs/public-signals.md lists exactly the NATIONALITY_PUBLIC_SIGNALS order", () => {
+    assert.deepEqual(layoutFromDoc(publicSignalsDoc, "## NationalityClaim"), NATIONALITY_LAYOUT);
+  });
+
+  it("the generated verifier takes one uint per signal", () => {
+    assert.equal(
+      calldataArity(groth16NationalitySource, /uint\[(\d+)\] calldata _pubSignals/),
+      NATIONALITY_LAYOUT.length,
+    );
+  });
+
+  it("submitNationalityClaim takes one uint256 per signal", () => {
+    // Isolate the submitNationalityClaim signature so this asserts its arity, not age's.
+    const start = aletheiaSource.indexOf("function submitNationalityClaim");
+    assert.notEqual(start, -1, "AletheiaVerifier has no submitNationalityClaim");
+    const signature = aletheiaSource.slice(start, aletheiaSource.indexOf(")", start) + 1);
+    assert.equal(
+      calldataArity(signature, /uint256\[(\d+)\] calldata publicSignals/),
+      NATIONALITY_LAYOUT.length,
     );
   });
 });

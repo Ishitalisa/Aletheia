@@ -19,16 +19,21 @@ export default buildModule("Aletheia", (m) => {
 
   const issuerRegistry = m.contract("AletheiaIssuerRegistry", [owner]);
 
-  // The snarkjs-generated verifier for age.circom. Its verification key is baked in, so
-  // this contract is only valid for the proving key it was exported from.
+  // The snarkjs-generated verifiers, one per claim circuit. Each verification key is baked
+  // in, so a verifier contract is only valid for the proving key it was exported from.
   const groth16VerifierAge = m.contract("Groth16VerifierAge");
+  const groth16VerifierNationality = m.contract("Groth16VerifierNationality");
 
   const verifier = m.contract("AletheiaVerifier", [owner, issuerRegistry]);
   const profile = m.contract("AletheiaProfile");
 
-  // Without this the verifier has no verifier for claim type 1 and every submission
-  // reverts with NoVerifierForClaim, so it is part of the deployment, not an afterthought.
-  m.call(verifier, "setClaimVerifier", [1, groth16VerifierAge]);
+  // Without these the verifier has no verifier for a claim type and every submission of it
+  // reverts with NoVerifierForClaim, so they are part of the deployment, not an
+  // afterthought. Claim type 1 is age, 2 is nationality.
+  m.call(verifier, "setClaimVerifier", [1, groth16VerifierAge], { id: "setAgeVerifier" });
+  m.call(verifier, "setClaimVerifier", [2, groth16VerifierNationality], {
+    id: "setNationalityVerifier",
+  });
 
-  return { issuerRegistry, groth16VerifierAge, verifier, profile };
+  return { issuerRegistry, groth16VerifierAge, groth16VerifierNationality, verifier, profile };
 });

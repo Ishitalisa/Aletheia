@@ -24,6 +24,7 @@ const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 /** Circuit name to the contract name Aletheia deploys for it. */
 export const VERIFIER_CONTRACTS = {
   age: "Groth16VerifierAge",
+  nationality: "Groth16VerifierNationality",
 } as const;
 
 export type VerifierCircuit = keyof typeof VERIFIER_CONTRACTS;
