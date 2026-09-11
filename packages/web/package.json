@@ -19,7 +19,7 @@
     "@aletheia/extraction": "workspace:*",
     "@aletheia/issuer-mock": "workspace:*",
     "@aletheia/query": "workspace:*",
-    "next": "15.5.4",
+    "next": "15.5.25",
     "pdfjs-dist": "4.10.38",
     "react": "19.1.1",
     "react-dom": "19.1.1",
