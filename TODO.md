@@ -369,11 +369,28 @@ and the ICAO code `UTO` returns an `unsupported-nationality` issue. `pnpm --filt
 
 ## Day 18 — Stage 15: image and PDF input
 
-- [ ] Camera scan, image and PDF, all client-side, in a worker. PDF JavaScript disabled,
+- [x] Camera scan, image and PDF, all client-side, in a worker. PDF JavaScript disabled,
       size and page caps, no server-side parser, extracted text never evaluated.
 
 **Exit criteria** — a fixture PDF and a fixture image both reach the same candidate
-fields as the raw MRZ, and no network request is issued during extraction.
+fields as the raw MRZ, and no network request is issued during extraction. **Met** —
+`packages/extraction` grew three converging input paths (`extractFromMrzText`,
+`extractFromImage`, `extractFromPdf` in `src/document.ts`): each decodes to text, finds the
+two 44-char MRZ lines (`src/mrz-lines.ts`), and runs the **same** `parseTd3Mrz`. The
+committed fixture PDF (`fixtures/passport-mrz.pdf`, read via pdf.js text layer, `src/pdf.ts`)
+and the committed fixture image (`fixtures/passport-mrz.png`, OCR'd by real tesseract.js
+with the committed `assets/mrz.traineddata`, `src/ocr.ts`) both extract to the identical
+`{ documentNumber: "J8369854", nationality: 356, dateOfBirth: 19880515, expiryDate:
+20300102, sex: "F" }` the raw MRZ yields. **No network**: the gate test severs
+`http`/`https`/`fetch` around each extraction and asserts zero hits — the wasm core and the
+model load from disk, never a CDN. Image OCR is a two-pass read (detect line boxes, then
+re-OCR each box in single-line mode) because a whole-strip pass misreads a glyph; the
+per-line read is exact. PDF path disables JS (`isEvalSupported: false`, no scripting layer);
+`MAX_DOCUMENT_BYTES` (8 MiB) and `MAX_PDF_PAGES` (4) cap input before decode; extracted text
+is only ever parsed, never evaluated. A camera frame is just an image and needs no separate
+path. The Web Worker transport (`src/worker.ts`) runs the same tested core off the main
+thread. `pnpm --filter @aletheia/extraction test` is 32/32 green (up from 18); `typecheck`
+and `build` clean; the built `dist` was smoke-tested on both fixtures.
 
 ## Day 19 — Stage 15: `documentKey`
 
