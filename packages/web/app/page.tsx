@@ -49,10 +49,59 @@ interface Outcome {
   block: string;
 }
 
-// A specimen TD3 MRZ with valid ICAO check digits (the repo's extraction fixture): DOB
-// 1988-05-15, expiry 2030-01-02. Not a real person.
-const SAMPLE_MRZ =
-  "P<INDRASHMI<<DEVI<<<<<<<<<<<<<<<<<<<<<<<<<<<\nJ8369854<4IND8805153F3001020<<<<<<<<<<<<<<<4";
+/**
+ * Demo passports. Every one is entirely fabricated — invented names and document numbers,
+ * with valid ICAO 7-3-1 check digits so the extraction pipeline accepts them. None of this
+ * is a real person or a real document. Clicking one loads its fields straight into the
+ * review step so a first-time user can drive the whole flow in one click.
+ */
+const SYNTHETIC_NOTICE = "DEMO / SYNTHETIC DATA — NOT A REAL PASSPORT";
+
+interface Sample {
+  id: string;
+  label: string;
+  /** What this sample is for, in the demo. */
+  note: string;
+  /** The two-line TD3 MRZ, for the "paste + Extract" pipeline demo. */
+  mrz: string;
+  /** The reviewed fields, loaded directly into step 2. */
+  fields: ReviewForm;
+}
+
+const SAMPLES: Sample[] = [
+  {
+    id: "valid-adult-india",
+    label: "Valid adult · India",
+    note: "age ✓, nationality 356, not expired — every claim provable",
+    mrz: "P<INDSHARMA<<PRIYA<<<<<<<<<<<<<<<<<<<<<<<<<<\nS1234567<2IND9604124F3208151<<<<<<<<<<<<<<<6",
+    fields: { documentNumber: "S1234567", nationalityAlpha3: "IND", nationality: "356", dateOfBirth: "1996-04-12", expiryDate: "2032-08-15", sex: "F" },
+  },
+  {
+    id: "adult-usa",
+    label: "Adult · United States",
+    note: "different nationality (840) — nationality claim reveals USA",
+    mrz: "P<USACARTER<<JAMES<<<<<<<<<<<<<<<<<<<<<<<<<<\nA9988776<0USA9411058M3303207<<<<<<<<<<<<<<<8",
+    fields: { documentNumber: "A9988776", nationalityAlpha3: "USA", nationality: "840", dateOfBirth: "1994-11-05", expiryDate: "2033-03-20", sex: "M" },
+  },
+  {
+    id: "minor-india",
+    label: "Minor · India",
+    note: "under 18 — an age ≥ 18 proof cannot be produced (the point)",
+    mrz: "P<INDMEHTA<<AARAV<<<<<<<<<<<<<<<<<<<<<<<<<<<\nU7654321<4IND1206201M3101104<<<<<<<<<<<<<<<2",
+    fields: { documentNumber: "U7654321", nationalityAlpha3: "IND", nationality: "356", dateOfBirth: "2012-06-20", expiryDate: "2031-01-10", sex: "M" },
+  },
+  {
+    id: "expired-india",
+    label: "Expired · India",
+    note: "expiry in the past — no claim is provable (expiry is checked in every proof)",
+    mrz: "P<INDKHAN<<SANA<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\nE5556667<0IND9003037F2205016<<<<<<<<<<<<<<<8",
+    fields: { documentNumber: "E5556667", nationalityAlpha3: "IND", nationality: "356", dateOfBirth: "1990-03-03", expiryDate: "2022-05-01", sex: "F" },
+  },
+];
+
+// The default "Use sample MRZ" text: the valid adult, so the paste + Extract path has
+// something real to parse.
+const SAMPLE_MRZ = SAMPLES[0]!.mrz;
 
 function yyyymmddToInput(value: number): string {
   const s = value.toString().padStart(8, "0");
@@ -70,6 +119,7 @@ export default function Page() {
   const [rawText, setRawText] = useState("");
   const [extraction, setExtraction] = useState<DocumentExtractionResult | null>(null);
   const [form, setForm] = useState<ReviewForm | null>(null);
+  const [activeSample, setActiveSample] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [claimType, setClaimType] = useState<ClaimType>("age");
   const [minimumAge, setMinimumAge] = useState(18);
@@ -90,11 +140,30 @@ export default function Page() {
   function reset() {
     setExtraction(null);
     setForm(null);
+    setActiveSample(null);
     setConfirmed(false);
     setDisclosureAck(false);
     setOutcome(null);
     setError(null);
     setLog([]);
+  }
+
+  /**
+   * Load a synthetic demo passport straight into the review step. Skips extraction on
+   * purpose: a genuine minor's date of birth is century-ambiguous by ICAO rules (so it
+   * would need manual confirmation), and one-click loading is the smoothest way for a
+   * first-time user to reach the proof. The fields are still fully editable in review.
+   */
+  function loadSample(s: Sample) {
+    setExtraction(null);
+    setConfirmed(false);
+    setDisclosureAck(false);
+    setOutcome(null);
+    setError(null);
+    setLog([]);
+    setRawText(s.mrz);
+    setForm({ ...s.fields });
+    setActiveSample(s.id);
   }
 
   function applyExtraction(result: DocumentExtractionResult) {
@@ -234,6 +303,29 @@ export default function Page() {
 
   const extractionFailed = extraction && !extraction.ok ? extraction : null;
 
+  // Read-only hints so the demo shows *why* a claim will prove or fail, before proving.
+  function isoParts(v: string): [number, number, number] | null {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+    return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+  }
+  const holderAge = (() => {
+    const p = form && isoParts(form.dateOfBirth);
+    if (!p) return null;
+    const now = new Date();
+    let age = now.getUTCFullYear() - p[0];
+    if (now.getUTCMonth() + 1 < p[1] || (now.getUTCMonth() + 1 === p[1] && now.getUTCDate() < p[2])) {
+      age -= 1;
+    }
+    return age;
+  })();
+  const credentialExpired = (() => {
+    const p = form && isoParts(form.expiryDate);
+    if (!p) return false;
+    const today = new Date();
+    const todayNum = today.getUTCFullYear() * 10000 + (today.getUTCMonth() + 1) * 100 + today.getUTCDate();
+    return p[0] * 10000 + p[1] * 100 + p[2] < todayNum;
+  })();
+
   return (
     <main>
       <SiteHeader active="holder" />
@@ -252,10 +344,43 @@ export default function Page() {
       </div>
 
       {/* 1. Input */}
-      <section className="step" data-done={Boolean(extraction?.ok)}>
+      <section className="step" data-done={Boolean(form)}>
         <h2>
           <span className="n">1</span> Load a passport
         </h2>
+
+        {/* Demo passports — one click loads synthetic fields into review. */}
+        <div className="samples">
+          <div className="samples-head">
+            <strong>Try a demo passport</strong>
+            <span className="badge-synthetic" title={SYNTHETIC_NOTICE}>
+              synthetic — not real
+            </span>
+          </div>
+          <p className="hint" style={{ marginTop: 0 }}>
+            One click loads fictional passport data (valid ICAO check digits, invented people)
+            straight into review. Every sample is fabricated — {SYNTHETIC_NOTICE}.
+          </p>
+          <div className="sample-grid">
+            {SAMPLES.map((s) => (
+              <button
+                key={s.id}
+                className="sample"
+                data-active={activeSample === s.id}
+                disabled={busy}
+                onClick={() => loadSample(s)}
+              >
+                <span className="sample-label">{s.label}</span>
+                <span className="sample-note">{s.note}</span>
+              </button>
+            ))}
+          </div>
+          <p className="hint">
+            Or paste / upload your own below — the passport is parsed on this device and never
+            leaves it.
+          </p>
+        </div>
+
         <div className="tabs">
           <button data-active={tab === "text"} onClick={() => setTab("text")}>
             Paste MRZ
@@ -290,7 +415,10 @@ export default function Page() {
                 Use sample MRZ
               </button>
             </div>
-            <p className="hint">The sample is a specimen passport (immihelp.com), not a real person.</p>
+            <p className="hint">
+              “Use sample MRZ” fills a fabricated MRZ (valid check digits) to demonstrate the
+              on-device parser — {SYNTHETIC_NOTICE}.
+            </p>
           </>
         )}
 
@@ -351,8 +479,27 @@ export default function Page() {
           <h2>
             <span className="n">2</span> Review &amp; correct
           </h2>
+          {activeSample && (
+            <div className="synthetic-banner">
+              <span className="badge-synthetic">synthetic</span> {SYNTHETIC_NOTICE}. Fictional data,
+              fully editable below.
+            </div>
+          )}
           <p className="hint">
             Extraction is untrusted input. Confirm every field — it is what the issuer will sign.
+            {holderAge !== null && (
+              <>
+                {" "}This holder is <strong>~{holderAge}</strong>
+                {credentialExpired ? (
+                  <>
+                    {" "}and the credential is <strong>expired</strong> — no claim can be proven
+                    (every proof checks expiry).
+                  </>
+                ) : (
+                  "."
+                )}
+              </>
+            )}
           </p>
           <div className="row">
             <div>
@@ -434,6 +581,19 @@ export default function Page() {
               <p className="hint">
                 An age proof reveals only that the threshold is met — never your date of birth.
               </p>
+              {holderAge !== null && !credentialExpired && (
+                <p className="hint">
+                  {holderAge >= minimumAge ? (
+                    <span className="ok">✓ Provable</span>
+                  ) : (
+                    <span className="warn-text">✗ Not provable</span>
+                  )}{" "}
+                  — this holder is ~{holderAge}, so a proof of “age ≥ {minimumAge}”{" "}
+                  {holderAge >= minimumAge
+                    ? "will succeed."
+                    : "cannot be produced. The proof can't lie about age — that's the point."}
+                </p>
+              )}
             </>
           ) : claimType === "expiry" ? (
             <>

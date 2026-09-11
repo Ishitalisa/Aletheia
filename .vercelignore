@@ -1,0 +1,53 @@
+# Uploaded to Vercel for the remote Next.js build of packages/web.
+# .vercelignore REPLACES .gitignore for the upload, so this lists everything to EXCLUDE.
+# The @aletheia/* packages compile to dist/ (gitignored) and @aletheia/circuits only builds
+# with circom + a trusted setup that cannot run on Vercel — so the locally-built dist/ and
+# circuit build are uploaded and Vercel just runs the web app's build.
+
+# --- Secrets: never upload ---
+.env
+.env.*
+**/.env
+**/.env.*
+
+# --- Dependencies & VCS (Vercel reinstalls) ---
+.git
+node_modules
+**/node_modules
+
+# --- Build caches / local tooling ---
+.next
+**/.next
+.next-verify
+**/.next-verify
+.vercel
+**/.vercel
+.turbo
+**/.turbo
+**/*.tsbuildinfo
+.claude
+coverage
+**/coverage
+*.log
+
+# --- Heavy / irrelevant to the web build ---
+# circuits/build is the source the local prebuild copies into web/public/circuits; with the
+# build command set to `next build` (no prebuild), the already-copied public/circuits is used
+# and this 40 MB is not needed on Vercel.
+packages/circuits/build
+packages/circuits/ptau
+packages/subgraph/build
+packages/subgraph/generated
+packages/contracts/artifacts
+packages/contracts/cache
+packages/contracts/ignition/deployments
+packages/contracts/typechain-types
+
+# --- Private-key sources (the mock-dev key ships only via web/public) ---
+packages/issuer-mock/keys
+keystore
+
+# NOTE: intentionally NOT excluded, so they upload for the remote build:
+#   packages/*/dist                     (locally-built package output the web app imports)
+#   packages/web/public/**              (runtime assets: circuits wasm/zkey, OCR, keystore)
+#   packages/web/src/abi/*.json         (committed ABI + deployment manifest)

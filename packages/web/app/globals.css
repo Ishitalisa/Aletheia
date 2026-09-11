@@ -541,3 +541,105 @@ a {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* --- Demo passports ----------------------------------------------------------- */
+.samples {
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel-2));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.samples-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.samples-head strong {
+  font-size: 14px;
+}
+
+.sample-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+
+.sample {
+  margin-top: 0;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-align: left;
+  color: var(--text);
+  font-weight: 500;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.sample:hover:not(:disabled) {
+  filter: none;
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow: none;
+}
+
+.sample[data-active="true"] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--panel));
+}
+
+.sample-label {
+  font-weight: 650;
+  font-size: 13.5px;
+}
+
+.sample-note {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.badge-synthetic {
+  display: inline-block;
+  background: color-mix(in srgb, var(--warn) 20%, transparent);
+  color: #fde68a;
+  border: 1px solid color-mix(in srgb, var(--warn) 55%, transparent);
+  border-radius: 6px;
+  padding: 1px 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.synthetic-banner {
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
+  color: #fde68a;
+  border-radius: 9px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  margin: 4px 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.warn-text {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .sample-grid {
+    grid-template-columns: 1fr;
+  }
+}

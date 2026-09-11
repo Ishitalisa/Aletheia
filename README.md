@@ -90,6 +90,22 @@ passport never leaves the device. The verifier flow (`/verify`) looks up an ENS 
 address and renders each record as one of five honest states, live from the subgraph. Full
 setup and both signer paths are in `packages/web/README.md`.
 
+### Try it with a demo passport
+
+The holder flow opens with a **"Try a demo passport"** row — one click loads a fabricated
+passport into the review step, so you can drive the whole flow without typing an MRZ:
+
+| Sample | Demonstrates |
+|---|---|
+| **Valid adult · India** | every claim is provable (age ✓, nationality 356, not expired) |
+| **Adult · United States** | a different nationality (840) — the nationality claim reveals USA |
+| **Minor · India** | under 18 — an "age ≥ 18" proof **cannot** be produced (the proof can't lie) |
+| **Expired · India** | expiry in the past — **no** claim is provable, because every proof checks expiry |
+
+> **Every sample is synthetic** — invented names and document numbers with valid ICAO check
+> digits, defined in `packages/web/app/page.tsx` (`SAMPLES`). No real person, passport, or
+> personal data is used anywhere in this repository.
+
 ## Documentation
 
 | Document | Contents |
