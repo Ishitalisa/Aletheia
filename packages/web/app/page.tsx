@@ -6,6 +6,7 @@ import { useState } from "react";
 import { todayUtcYyyymmdd } from "@aletheia/credential";
 import type { DocumentExtractionResult } from "@aletheia/extraction/browser";
 
+import { SiteHeader } from "./SiteHeader";
 import { DEFAULT_CONTEXT_LABEL, contextIdFromLabel } from "@/lib/context";
 import { DEPLOYMENT, etherscanTx } from "@/lib/deployment";
 import { extractImage, extractPdf, extractText } from "@/lib/extraction";
@@ -235,17 +236,14 @@ export default function Page() {
 
   return (
     <main>
-      <nav className="nav">
-        <Link href="/" data-active="true">
-          Holder
-        </Link>
-        <Link href="/verify">Verifier</Link>
-      </nav>
+      <SiteHeader active="holder" />
 
-      <h1>Aletheia — holder flow</h1>
+      <h1>Holder flow</h1>
       <p className="sub">
-        Extract a passport MRZ, review it, prove an age claim, and submit it to Sepolia. Everything
-        runs on this device.
+        Extract a passport MRZ, review it, then prove your <strong>age</strong>,{" "}
+        <strong>nationality</strong>, or that your credential is <strong>not expired</strong> — and
+        submit that proof to Sepolia. The passport never leaves this device; only the proof goes
+        on-chain.
       </p>
 
       <div className="mock-banner">

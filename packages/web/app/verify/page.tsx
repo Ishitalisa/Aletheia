@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -10,6 +9,7 @@ import {
   type VerificationState,
 } from "@aletheia/query/browser";
 
+import { SiteHeader } from "../SiteHeader";
 import {
   FRESHNESS_PRESETS,
   ensAvailable,
@@ -222,14 +222,9 @@ export default function VerifyPage() {
 
   return (
     <main>
-      <nav className="nav">
-        <Link href="/">Holder</Link>
-        <Link href="/verify" data-active="true">
-          Verifier
-        </Link>
-      </nav>
+      <SiteHeader active="verify" />
 
-      <h1>Aletheia — verifier flow</h1>
+      <h1>Verifier flow</h1>
       <p className="sub">
         Look up an ENS name or a wallet address, read what it has proven, and see each record as one
         of five honest states. Everything is read live from the subgraph and mainnet ENS on this

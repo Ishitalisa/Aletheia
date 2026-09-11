@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Aletheia holder flow (mock-dev)",
+  title: "Aletheia — verify the claim, not the document",
   description:
-    "Phase 1 holder flow: extract a passport MRZ, review it, sign a mock-dev credential, prove an age claim, and submit to Sepolia — all on the device.",
+    "Privacy-preserving credential verification. Prove your age, nationality, or that a credential " +
+    "has not expired with a zero-knowledge proof on Ethereum — the verifier learns the answer, " +
+    "never the data. Phase 1 uses a clearly labelled mock issuer.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
