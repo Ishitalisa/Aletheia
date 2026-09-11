@@ -159,3 +159,45 @@ export function rawNationalityInput(
     subject: BigInt(subject),
   };
 }
+
+export interface RawExpiryParams {
+  /** `bigint` and out-of-range values are allowed: that is the point of these tests. */
+  currentDate: number | bigint;
+  contextId: bigint;
+  /** The generic parameter slot; the circuit pins it to zero. Overridable to test that pin. */
+  expiryParameter?: number | bigint;
+  /** Override the public issuer key, to model a forged-issuer attempt. */
+  issuer?: { ax: bigint; ay: bigint };
+  /** Override the public subject, to model a stolen-credential attempt. */
+  subject?: string;
+  /** Override the public schemaVersion, to test the circuit's version pin. */
+  schemaVersion?: number | bigint;
+}
+
+/**
+ * Assemble an `expiry.circom` input directly, bypassing any library validation. The
+ * nine-signal layout is identical to age's and nationality's; the generic parameter slot
+ * (expiryParameter) is pinned to zero by the circuit, and defaults to zero here.
+ */
+export function rawExpiryInput(signed: SignedCredential, params: RawExpiryParams): CircuitInput {
+  const issuer = params.issuer ?? signed.issuer;
+  const subject = params.subject ?? signed.credential.subject;
+  return {
+    credentialId: signed.credential.credentialId,
+    dateOfBirth: signed.credential.dateOfBirth,
+    nationality: signed.credential.nationality,
+    expiryDate: signed.credential.expiryDate,
+    issuedAt: signed.credential.issuedAt,
+    identitySecret: signed.credential.identitySecret,
+    sigR8x: signed.signature.r8x,
+    sigR8y: signed.signature.r8y,
+    sigS: signed.signature.s,
+    schemaVersion: params.schemaVersion ?? signed.credential.schemaVersion,
+    issuerAx: issuer.ax,
+    issuerAy: issuer.ay,
+    currentDate: params.currentDate,
+    expiryParameter: params.expiryParameter ?? 0,
+    contextId: params.contextId,
+    subject: BigInt(subject),
+  };
+}
