@@ -1,5 +1,6 @@
 # Next.js
 /.next/
+/.next-verify/
 /out/
 next-env.d.ts
 *.tsbuildinfo

@@ -118,7 +118,25 @@ wasm/zkey/vkey, snarkjs worker blobs) plus RPC calls carrying only the proof cal
 date of birth, nationality, expiry and document number never leave the device. Making the
 browser bundle possible needed `./browser` (and `@aletheia/credential/test-fixture`)
 subpath exports splitting the fs-only pieces out of four packages, leaving every Node
-barrel unchanged. The next task is **Day 21**, the verifier flow (`packages/web`, Part 3).
+barrel unchanged.
+
+Day 21 is now done: the **verifier flow** (`packages/web`, `/verify`). It resolves an ENS
+name (forward) or a typed address (with a best-effort reverse-name lookup) live over
+mainnet through `@aletheia/ens/browser`, reads the subject's verifications from the subgraph
+through `@aletheia/query/browser`, and classifies each record with the same pure
+`deriveVerificationState` the query package unit-tests. A freshness-window selector renders
+one real record as `verified` or `stale` with no re-query; an absent address renders `not
+found`; a watch panel polls `verificationState(id, {expectedBlock})` and shows `pending`
+(awaiting-index) flipping to `verified` the instant the record is indexed, without a reload;
+the holder flow links straight into it after a submit. Every record shows the `mock-dev`
+label and links to its Sepolia transaction. Driven live against the deployed subgraph:
+`verified`, `stale`, `not found` and `pending` all reproduced in the real UI from real
+endpoint data (`revoked` is the same rendering path, driven by `issuer.active`, reproduced
+live at Day 14). To keep `node:fs` out of the browser bundle, `@aletheia/query` and
+`@aletheia/ens` gained `./browser` entries: the root-`.env` loader was split into a
+`root-env.ts`, the Node barrels wrap the client/resolver factories to call it, and the
+browser factories take their endpoint explicitly. `next build` is clean with no `node:fs`
+in the client bundle. The next task is **Day 22**, `nationality.circom` (Part 4).
 
 ## Build status
 
@@ -131,11 +149,11 @@ barrel unchanged. The next task is **Day 21**, the verifier flow (`packages/web`
 | `packages/circuits` | **26 of 26 passing** |
 | `packages/contracts` | **46 passing** (Day 6 done; +1 for the leap-year-boundary sweep) |
 | `packages/subgraph` | **6 matchstick tests passing** (Day 11); `graph codegen`/`graph build` clean, no `eth_call`; deployed to Studio (Day 12), slug `aletheia` v0.0.2, synced clean |
-| `packages/query` | **40 of 40 passing** (Day 14 done, +13 for the five-state derivation); `scripts/check.ts` and `scripts/states.ts` pass live against the deployed Studio endpoint |
-| `packages/ens` | **11 of 11 passing** (Day 15 done); pure seams unit-tested (env validation, UTS-46 name normalisation, address checksumming); `scripts/check.ts` passes live against real mainnet ENS through the Universal Resolver |
+| `packages/query` | **40 of 40 passing** (Day 14 done, +13 for the five-state derivation); `scripts/check.ts` and `scripts/states.ts` pass live against the deployed Studio endpoint. Day 21 added a `./browser` entry (the root-`.env` loader split into `root-env.ts`, the Node barrel wraps the factory to call it) so the verifier flow can read the subgraph in the browser |
+| `packages/ens` | **11 of 11 passing** (Day 15 done); pure seams unit-tested (env validation, UTS-46 name normalisation, address checksumming); `scripts/check.ts` passes live against real mainnet ENS through the Universal Resolver. Day 21 added a `./browser` entry the same way, so the verifier flow resolves ENS on-device |
 | `packages/extraction` | **44 of 44 passing** (Days 17–19 done): Day 17 TD3 MRZ parsing (check digits anchored to the ICAO 9303 specimen, century inference, sex); Day 18 image and PDF input — `extractFromMrzText`/`extractFromImage`/`extractFromPdf` converge on the one parser, a committed fixture image (real offline OCR, MRZ model) and fixture PDF (pdf.js text layer, JS disabled) reach the same fields as the raw MRZ, the gate test proves zero network by blocking every socket, and byte/page caps bound input before decode; Day 19 `deriveDocumentKey` — a stable, on-device field element identifying one passport (SHA-256 over the four stable MRZ identity fields, reduced with `hashToField`), +12 tests covering a pinned vector, determinism through the real parser, cross-document distinctness and field element-ness. `typecheck`/`build` clean; built `dist` smoke-tested. |
 | `scripts` | **no unit tests by design** (Day 16 done): it is the cross-package end-to-end runner, and its whole product is a live run against real infrastructure, `pnpm --filter @aletheia/scripts run m1`. `typecheck` clean. A recorded green run is below. |
-| `packages/web` | **Day 20 done** — the Next.js holder flow. No unit tests by design; its product is a live browser run against Sepolia. `typecheck` clean; a recorded run submitted tx `0xcdadf4…24044a` (block 11680359) from a browser-produced proof, with the passport never leaving the device (network-tab verified). Reuses the shared packages through their new `./browser` entries. Setup and both signer paths in `packages/web/README.md`. |
+| `packages/web` | **Days 20–21 done** — the Next.js holder flow (`/`) and verifier flow (`/verify`). No unit tests by design; its product is a live browser run. Day 20: a recorded run submitted tx `0xcdadf4…24044a` (block 11680359) from a browser-produced proof, with the passport never leaving the device (network-tab verified). Day 21: the verifier flow resolves ENS/address, reads the subgraph, and renders the five states — `verified`, `stale`, `not found` and `pending` all driven live in a browser against the deployed subgraph, `revoked` the same rendering path; `next build` clean with no `node:fs` in the client bundle. Reuses the shared packages through their `./browser` entries. Setup, both signer paths and the verifier flow in `packages/web/README.md`. |
 
 `packages/web` is named in `docs/architecture.md` and does not exist yet (Day 20);
 `packages/extraction` (Days 17–18) is what it will consume — the MRZ parser plus the
@@ -373,7 +391,7 @@ The submit left one real `Verification` on Sepolia and in the subgraph
 | 14 | ENS resolution | **closed** — `packages/ens` resolves forward and reverse through the Universal Resolver proxy over mainnet, read-only, viem 2.56: `scripts/check.ts` ran live and `vitalik.eth` → `0xd8dA…6045` with the reverse round-trip, a nonexistent name returned not-found without throwing, and a keccak-derived address with no reverse record returned null; 11 unit tests green, the name resolved live and stored nowhere |
 | — | **M1 end-to-end** | **closed** — the top-level `scripts` runner drives all nine stages against real infrastructure in one command; a green run submitted tx `0xc4648df4…7f313c` (block 11678827) and read the record back `verified` from the deployed subgraph, observing `pending` then `verified` |
 | 15 | Document extraction | **closed** — `packages/extraction` parses a TD3 MRZ into candidate fields (Day 17: Indian fixture extracts, a failing check digit names its field, an ambiguous century and unmapped nationality return without guessing; ICAO 9303 specimen anchor), converges typed/image/PDF input on the one parser in a worker with zero network and input caps (Day 18), and derives `documentKey` — a stable on-device field element identifying one passport, feeding `deriveIdentitySecret` (Day 19); 44 tests green |
-| 16 | Frontend (age only) | **holder flow closed (Day 20)** — `packages/web` (Next.js) extracts, enforces a mandatory review, signs mock-dev on-device, proves age in-browser (snarkjs), and submits to Sepolia; a live run produced tx `0xcdadf4…24044a` (block 11680359) with the passport never leaving the device. Verifier flow (Day 21) remains |
+| 16 | Frontend (age only) | **closed (Days 20–21)** — `packages/web` (Next.js). Holder flow: extracts, enforces a mandatory review, signs mock-dev on-device, proves age in-browser (snarkjs), and submits to Sepolia; a live run produced tx `0xcdadf4…24044a` (block 11680359) with the passport never leaving the device. Verifier flow (`/verify`): resolves ENS/address, reads the subgraph, renders the five verification states — `verified`, `stale`, `not found` and `pending` driven live in a browser against the deployed subgraph, `revoked` the same rendering path; pending is shown before verified and a submitted tx is never rendered verified before its record exists |
 | 17 | NationalityClaim | not started |
 | 18 | ExpiryClaim | not started |
 | 19 | Multi-claim end-to-end | not started |

@@ -453,13 +453,36 @@ credential/issuer-mock/circuits/extraction test suites green (52/18/26/44).
 
 ## Day 21 — Stage 16: verifier flow
 
-- [ ] Resolve an ENS name or an address, query, render all five states.
-- [ ] Pending is rendered before verified, always. A submitted transaction is never
+- [x] Resolve an ENS name or an address, query, render all five states.
+- [x] Pending is rendered before verified, always. A submitted transaction is never
       rendered as verified.
-- [ ] Every record shows the `mock-dev` label and links to its transaction.
+- [x] Every record shows the `mock-dev` label and links to its transaction.
 
 **Exit criteria** — the day 20 verification appears as pending, then verified, without a
-reload trick; every state reachable in the real UI.
+reload trick; every state reachable in the real UI. **Met** — `packages/web` gains a
+verifier flow at `/verify`. It resolves an ENS name (forward) or a typed address (with a
+best-effort reverse-name lookup) live over mainnet through `@aletheia/ens/browser`, reads
+the subject's verifications from the subgraph through `@aletheia/query/browser`, and
+classifies each with the same pure `deriveVerificationState` the query package unit-tests
+and reproduces against the live endpoint. A freshness-window selector renders one real
+record as `verified` or `stale` with no re-query; an absent address renders `not found`; a
+"watch a verification" panel polls `verificationState(id, {expectedBlock})` and shows
+`pending` (awaiting-index) flipping to `verified` the moment the record is indexed, without
+a reload. The holder flow's success view links straight into that panel
+(`/verify?watch=<verificationId>&block=<minedBlock>`), so a just-submitted claim is seen
+going pending → verified. Every record shows the on-chain issuer label (`mock-dev`) and
+links to its Sepolia transaction. Driven live in a browser against the deployed subgraph:
+the Day 20 subject's five records rendered `verified` under a 30-day window and `stale`
+under a 1-hour one, an empty address rendered `not found`, and a watched id with the
+indexer behind its block rendered `pending` ("mined in block 11999999 but the subgraph has
+only indexed up to block 11680706") — four of the five states shown live from real endpoint
+data; `revoked` is the same rendering path driven by `issuer.active`, reproduced live at
+Day 14 and not re-driven here to avoid revoking the shared live `mock-dev` issuer. To keep
+the browser bundle free of `node:fs`, `@aletheia/query` and `@aletheia/ens` gained
+`./browser` subpath entries: the filesystem-only root-`.env` loader was split into a
+`root-env.ts` and the Node barrels wrap the factories to call it, leaving the browser
+factories to take their endpoint explicitly. Full workspace `typecheck` green; `next build`
+clean (no `node:fs` in the client bundle); query 40/40 and ens 11/11 still green.
 
 ---
 

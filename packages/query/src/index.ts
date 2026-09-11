@@ -1,15 +1,25 @@
-export {
-  createQueryClient,
-  type PageOptions,
-  type QueryClient,
-  type QueryClientOptions,
-} from "./client.ts";
+import { createQueryClient as createClient, type QueryClient, type QueryClientOptions } from "./client.ts";
+import { loadRootEnv } from "./root-env.ts";
+
+export type { PageOptions, QueryClient, QueryClientOptions } from "./client.ts";
+
+/**
+ * The Node client factory: like `client.ts`'s, but it first loads the repository-root
+ * `.env` when no endpoint is passed, so scripts and the end-to-end runner keep the
+ * zero-config `createQueryClient()` they have always had. The browser entry
+ * (`@aletheia/query/browser`) exports the raw, filesystem-free factory instead.
+ */
+export function createQueryClient(options: QueryClientOptions = {}): QueryClient {
+  if (options.endpoint === undefined) loadRootEnv();
+  return createClient(options);
+}
 
 export {
   assertQueryEndpoint,
-  loadRootEnv,
   resolveEndpoint,
 } from "./endpoint.ts";
+
+export { loadRootEnv } from "./root-env.ts";
 
 export {
   EndpointNotConfiguredError,

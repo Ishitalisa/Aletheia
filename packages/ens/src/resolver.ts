@@ -37,7 +37,7 @@ import {
 import { mainnet } from "viem/chains";
 import { normalize } from "viem/ens";
 
-import { loadRootEnv, resolveMainnetRpc } from "./endpoint.ts";
+import { resolveMainnetRpc } from "./endpoint.ts";
 import { EnsResolutionError, InvalidAddressError, InvalidEnsNameError } from "./errors.ts";
 
 /**
@@ -126,8 +126,15 @@ export interface EnsResolver {
   resolveName(address: string): Promise<string | null>;
 }
 
+/**
+ * Build a read-only ENS resolver.
+ *
+ * Browser-safe: it touches no filesystem. When `rpcUrl` is omitted it reads
+ * `MAINNET_RPC_URL` from `process.env` but never loads a `.env` file — that is the Node
+ * barrel's job (`index.ts` wraps this to `loadRootEnv()` first), which keeps `node:fs` out
+ * of the browser bundle. A browser caller passes `rpcUrl` explicitly.
+ */
 export function createEnsResolver(options: EnsResolverOptions = {}): EnsResolver {
-  if (options.rpcUrl === undefined) loadRootEnv();
   const rpcUrl = options.rpcUrl ?? resolveMainnetRpc();
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
