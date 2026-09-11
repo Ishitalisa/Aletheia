@@ -17,7 +17,7 @@
 
 import process from "node:process";
 
-import { createQueryClient } from "../src/client.ts";
+import { createQueryClient } from "../src/index.ts";
 import type { Verification } from "../src/types.ts";
 
 /** The `ClaimVerified` produced by the stage 11 transaction (docs/deployments.md). */

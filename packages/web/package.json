@@ -15,8 +15,10 @@
   "dependencies": {
     "@aletheia/circuits": "workspace:*",
     "@aletheia/credential": "workspace:*",
+    "@aletheia/ens": "workspace:*",
     "@aletheia/extraction": "workspace:*",
     "@aletheia/issuer-mock": "workspace:*",
+    "@aletheia/query": "workspace:*",
     "next": "15.5.4",
     "pdfjs-dist": "4.10.38",
     "react": "19.1.1",

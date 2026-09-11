@@ -165,12 +165,18 @@ importers:
       '@aletheia/credential':
         specifier: workspace:*
         version: link:../credential
+      '@aletheia/ens':
+        specifier: workspace:*
+        version: link:../ens
       '@aletheia/extraction':
         specifier: workspace:*
         version: link:../extraction
       '@aletheia/issuer-mock':
         specifier: workspace:*
         version: link:../issuer-mock
+      '@aletheia/query':
+        specifier: workspace:*
+        version: link:../query
       next:
         specifier: 15.5.4
         version: 15.5.4(react-dom@19.1.1(react@19.1.1))(react@19.1.1)

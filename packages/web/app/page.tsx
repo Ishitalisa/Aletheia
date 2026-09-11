@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import { todayUtcYyyymmdd } from "@aletheia/credential";
@@ -37,6 +38,8 @@ interface Outcome {
   identityNullifier: string;
   documentKey: string;
   minimumAge: number;
+  /** The block the transaction was mined in, handed to the verifier view to watch indexing. */
+  block: string;
 }
 
 // A specimen TD3 MRZ with valid ICAO check digits (the repo's extraction fixture): DOB
@@ -172,6 +175,7 @@ export default function Page() {
         identityNullifier: e.identityNullifier,
         documentKey: documentKey.toString(),
         minimumAge,
+        block: result.receipt.blockNumber.toString(),
       });
       say("done — real proof, real transaction, real event.");
     } catch (e) {
@@ -185,6 +189,13 @@ export default function Page() {
 
   return (
     <main>
+      <nav className="nav">
+        <Link href="/" data-active="true">
+          Holder
+        </Link>
+        <Link href="/verify">Verifier</Link>
+      </nav>
+
       <h1>Aletheia — holder flow</h1>
       <p className="sub">
         Extract a passport MRZ, review it, prove an age claim, and submit it to Sepolia. Everything
@@ -415,6 +426,15 @@ export default function Page() {
           <p className="hint" style={{ marginTop: 14 }}>
             The transaction carried only the proof and its public signals. Your date of birth,
             nationality, expiry and document number never left this device.
+          </p>
+          <p style={{ marginTop: 14 }}>
+            <Link href={`/verify?watch=${outcome.verificationId}&block=${outcome.block}`}>
+              See this in the verifier view →
+            </Link>{" "}
+            <span className="hint">
+              (it starts as pending and turns verified once the subgraph indexes the block, without a
+              reload)
+            </span>
           </p>
           <button className="secondary" onClick={reset}>
             Start over

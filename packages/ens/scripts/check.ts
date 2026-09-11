@@ -19,7 +19,7 @@ import process from "node:process";
 
 import { getAddress, keccak256, toBytes, type Address } from "viem";
 
-import { createEnsResolver } from "../src/resolver.ts";
+import { createEnsResolver } from "../src/index.ts";
 
 /** The nominated forward test vector (myTasks.md item 5). Input, not a stored result. */
 const FORWARD_TEST_NAME = "vitalik.eth";

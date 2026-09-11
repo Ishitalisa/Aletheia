@@ -9,29 +9,12 @@
  *
  * Loaded exactly like `@aletheia/query`'s endpoint and the contracts scripts: from the
  * repository-root `.env` via Node's own env-file loader, no dependency, never a literal.
+ * That loader lives in `root-env.ts` because it touches the filesystem; this module is
+ * kept pure (URL validation and a `process.env` read) so the browser entry can import the
+ * resolver without pulling `node:fs` into a bundle.
  */
-
-import { existsSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { MainnetRpcNotConfiguredError } from "./errors.ts";
-
-/** The repository-root `.env`, resolved from this file rather than the process cwd. */
-const ROOT_ENV = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", ".env");
-
-/**
- * Load the repository-root `.env` into `process.env`, if it exists.
- *
- * Idempotent and non-overriding: Node's loader does not replace variables already set,
- * so a value from the shell — or injected by CI, which has no `.env` — wins over the
- * file. Safe to call more than once.
- */
-export function loadRootEnv(): void {
-  if (existsSync(ROOT_ENV)) {
-    process.loadEnvFile(ROOT_ENV);
-  }
-}
 
 /**
  * Validate a mainnet RPC endpoint string.

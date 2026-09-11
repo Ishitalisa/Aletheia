@@ -8,32 +8,14 @@
  * believed.
  *
  * The repository-root `.env` is loaded the same way `packages/contracts/scripts/*` load
- * it: Node's own env-file loader, no dependency. `hardhat.config.ts` does the same. The
- * current endpoint is also recorded in `docs/deployments.md`, which is the human-readable
- * copy — not the one code reads.
+ * it: Node's own env-file loader, no dependency. `hardhat.config.ts` does the same. That
+ * loader lives in `root-env.ts` because it touches the filesystem; this module is kept
+ * pure (URL validation and a `process.env` read) so the browser entry can import the read
+ * path without pulling `node:fs` into a bundle. The current endpoint is also recorded in
+ * `docs/deployments.md`, which is the human-readable copy — not the one code reads.
  */
-
-import { existsSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { EndpointNotConfiguredError } from "./errors.ts";
-
-/** The repository-root `.env`, resolved from this file rather than the process cwd. */
-const ROOT_ENV = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", ".env");
-
-/**
- * Load the repository-root `.env` into `process.env`, if it exists.
- *
- * Idempotent and non-overriding: Node's loader does not replace variables already set,
- * so a value exported in the shell — or injected by CI, which has no `.env` — wins over
- * the file. Safe to call more than once.
- */
-export function loadRootEnv(): void {
-  if (existsSync(ROOT_ENV)) {
-    process.loadEnvFile(ROOT_ENV);
-  }
-}
 
 /**
  * Validate an endpoint string.

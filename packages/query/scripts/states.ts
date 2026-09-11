@@ -29,7 +29,7 @@
 
 import process from "node:process";
 
-import { createQueryClient } from "../src/client.ts";
+import { createQueryClient } from "../src/index.ts";
 import { deriveVerificationState, type FreshnessPolicy } from "../src/state.ts";
 import type { Verification } from "../src/types.ts";
 

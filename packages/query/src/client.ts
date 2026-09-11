@@ -22,7 +22,7 @@ import {
   decodeVerifications,
 } from "./decode.ts";
 import { GraphQueryError, GraphTransportError, MalformedResponseError } from "./errors.ts";
-import { loadRootEnv, resolveEndpoint } from "./endpoint.ts";
+import { resolveEndpoint } from "./endpoint.ts";
 import {
   ISSUER_QUERY,
   META_QUERY,
@@ -163,8 +163,15 @@ export interface QueryClient {
   issuer(issuerId: string): Promise<QueryResult<Issuer | null>>;
 }
 
+/**
+ * Build a read client for one deployed subgraph.
+ *
+ * Browser-safe: it touches no filesystem. When `endpoint` is omitted it reads
+ * `GRAPH_QUERY_URL` from `process.env` but never loads a `.env` file — that is the Node
+ * barrel's job (`index.ts` wraps this to `loadRootEnv()` first), which keeps `node:fs`
+ * out of the browser bundle. A browser caller passes `endpoint` explicitly.
+ */
 export function createQueryClient(options: QueryClientOptions = {}): QueryClient {
-  if (options.endpoint === undefined) loadRootEnv();
   const endpoint = options.endpoint ?? resolveEndpoint();
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
