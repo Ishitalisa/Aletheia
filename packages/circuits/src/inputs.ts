@@ -151,3 +151,63 @@ export const NATIONALITY_CLAIM = {
   circuit: "nationality",
   claimTypeId: CLAIM_TYPE.NATIONALITY,
 } as const;
+
+export interface ExpiryClaimRequest {
+  /** The date the claim is evaluated against, YYYYMMDD UTC. */
+  currentDate: number;
+  /** The verifier's scope tag, already reduced into the field. */
+  contextId: bigint;
+}
+
+/** Reject a request the circuit would reject anyway, with a readable message. */
+export function assertExpiryClaimRequest(request: ExpiryClaimRequest): void {
+  assertValidYyyymmdd(request.currentDate, "currentDate");
+  if (!isFieldElement(request.contextId)) {
+    throw new RangeError("contextId must be a bn128 field element");
+  }
+}
+
+/**
+ * Build the witness input for `expiry.circom`.
+ *
+ * Identical in shape to {@link ageClaimInput} and {@link nationalityClaimInput}, with one
+ * difference: the generic parameter slot has no meaning for an expiry claim, so it is pinned
+ * to zero — `expiryParameter: 0`. The circuit enforces that pin (`expiryParameter === 0`), so
+ * any other value is an unsatisfiable witness. A successful proof discloses only that the
+ * credential was unexpired on `currentDate`; the expiry date itself, and every other field,
+ * stay in the witness.
+ */
+export function expiryClaimInput(
+  signed: SignedCredential,
+  request: ExpiryClaimRequest,
+): CircuitInput {
+  assertNormalizedCredential(signed.credential);
+  assertExpiryClaimRequest(request);
+  return {
+    // private: the credential
+    credentialId: signed.credential.credentialId,
+    dateOfBirth: signed.credential.dateOfBirth,
+    nationality: signed.credential.nationality,
+    expiryDate: signed.credential.expiryDate,
+    issuedAt: signed.credential.issuedAt,
+    identitySecret: signed.credential.identitySecret,
+    // private: the issuer signature
+    sigR8x: signed.signature.r8x,
+    sigR8y: signed.signature.r8y,
+    sigS: signed.signature.s,
+    // public. The parameter slot is pinned to zero by the circuit; sending anything else
+    // produces an unsatisfiable witness rather than a silently different proof.
+    schemaVersion: signed.credential.schemaVersion,
+    issuerAx: signed.issuer.ax,
+    issuerAy: signed.issuer.ay,
+    currentDate: request.currentDate,
+    expiryParameter: 0,
+    contextId: request.contextId,
+    subject: BigInt(signed.credential.subject),
+  };
+}
+
+export const EXPIRY_CLAIM = {
+  circuit: "expiry",
+  claimTypeId: CLAIM_TYPE.EXPIRY,
+} as const;

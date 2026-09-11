@@ -11,13 +11,17 @@
 export {
   AGE_CLAIM,
   NATIONALITY_CLAIM,
+  EXPIRY_CLAIM,
   ageClaimInput,
   assertAgeClaimRequest,
   assertNationalityClaimRequest,
+  assertExpiryClaimRequest,
   nationalityClaimInput,
+  expiryClaimInput,
   type AgeClaimRequest,
   type CircuitInput,
   type NationalityClaimRequest,
+  type ExpiryClaimRequest,
 } from "./inputs.ts";
 
 export {
@@ -32,6 +36,12 @@ export {
   decodeNationalityPublicSignals,
   type NationalityPublicSignals,
 } from "./nationality-signals.ts";
+
+export {
+  EXPIRY_PUBLIC_SIGNALS,
+  decodeExpiryPublicSignals,
+  type ExpiryPublicSignals,
+} from "./expiry-signals.ts";
 
 export {
   toSolidityCalldata,

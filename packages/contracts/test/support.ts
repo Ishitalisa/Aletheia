@@ -14,6 +14,7 @@ import {
 import { loadCredentialFixture } from "@aletheia/credential/test-fixture";
 import {
   proveAgeClaim,
+  proveExpiryClaim,
   proveNationalityClaim,
   toSolidityCalldata,
   type SolidityCalldata,
@@ -40,12 +41,14 @@ export async function deployAletheia() {
   ]);
   const groth16 = await viem.deployContract("Groth16VerifierAge");
   const groth16Nationality = await viem.deployContract("Groth16VerifierNationality");
+  const groth16Expiry = await viem.deployContract("Groth16VerifierExpiry");
   const verifier = await viem.deployContract("AletheiaVerifier", [
     owner.account.address,
     registry.address,
   ]);
   await verifier.write.setClaimVerifier([1, groth16.address]);
   await verifier.write.setClaimVerifier([2, groth16Nationality.address]);
+  await verifier.write.setClaimVerifier([3, groth16Expiry.address]);
 
   // The issuer key is generated per test run, so nothing here depends on a key that
   // exists in the repository.
@@ -66,6 +69,7 @@ export async function deployAletheia() {
     registry,
     groth16,
     groth16Nationality,
+    groth16Expiry,
     verifier,
     issuer,
   };
@@ -224,6 +228,70 @@ export async function submitNationalityAsHolder(
   bundle: NationalityClaimBundle,
 ): Promise<`0x${string}`> {
   return deployment.verifier.write.submitNationalityClaim(
+    [bundle.calldata.a, bundle.calldata.b, bundle.calldata.c, bundle.signals],
+    { account: deployment.holder.account },
+  );
+}
+
+export interface ExpiryClaimOptions {
+  currentDate?: number;
+  contextId?: bigint;
+  /** Sign with a different issuer key, to model an unregistered issuer. */
+  issuerPrivateKey?: Uint8Array;
+  /** Override credential fields before signing — e.g. `expiryDate` for the boundary case. */
+  credential?: Partial<NormalizedCredential>;
+}
+
+/**
+ * An expiry claim bundle. The signals tuple is the same nine-signal v2 order as age's, with
+ * the generic parameter slot (index 6, `expiryParameter`) pinned to zero by the circuit.
+ */
+export interface ExpiryClaimBundle {
+  signed: SignedCredential;
+  calldata: SolidityCalldata;
+  signals: AgeClaimBundle["signals"];
+  publicSignals: string[];
+}
+
+/**
+ * Sign a credential for the holder's own address and prove an expiry claim about it.
+ *
+ * The claim asserts the credential is unexpired as of `currentDate`, which defaults to the
+ * chain's today. The fixture credential expires in 2034, so the default case proves cleanly;
+ * pass `credential: { expiryDate }` to drive the boundary (`expiryDate == currentDate`) and
+ * the expired negative (an unsatisfiable witness, so no proof can be built).
+ */
+export async function buildExpiryClaim(
+  deployment: Deployment,
+  options: ExpiryClaimOptions = {},
+): Promise<ExpiryClaimBundle> {
+  const { credential } = loadCredentialFixture();
+  const signed = await signCredential(options.issuerPrivateKey ?? deployment.issuer.privateKey, {
+    ...credential,
+    subject: deployment.holder.account.address.toLowerCase(),
+    ...options.credential,
+  });
+
+  const proved = await proveExpiryClaim(signed, {
+    currentDate: options.currentDate ?? (await chainToday(deployment)),
+    contextId: options.contextId ?? loadCredentialFixture().expected.contextId,
+  });
+  const calldata = await toSolidityCalldata(proved.proof, proved.publicSignals);
+
+  return {
+    signed,
+    calldata,
+    signals: calldata.publicSignals as unknown as AgeClaimBundle["signals"],
+    publicSignals: proved.publicSignals,
+  };
+}
+
+/** Submit an expiry claim as the holder. Returns the transaction hash. */
+export async function submitExpiryAsHolder(
+  deployment: Deployment,
+  bundle: ExpiryClaimBundle,
+): Promise<`0x${string}`> {
+  return deployment.verifier.write.submitExpiryClaim(
     [bundle.calldata.a, bundle.calldata.b, bundle.calldata.c, bundle.signals],
     { account: deployment.holder.account },
   );

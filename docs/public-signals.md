@@ -69,6 +69,37 @@ id and `identitySecret` stay in the witness. The nationality is the one value th
 designed to reveal, and it appears only because the verifier put it in `requiredNationality`
 and the proof confirmed it — the credential's own nationality field never leaves the witness.
 
-## ExpiryClaim (`claimTypeId = 3`)
+## ExpiryClaim (`claimTypeId = 3`, schema version 2)
 
-Pending stage 18.
+The same nine-signal v2 layout as AgeClaim and NationalityClaim, so a proof decodes
+identically on-chain — the generic claim-parameter slot at index 6 is named
+`expiryParameter` and is **pinned to zero** by the circuit, because an expiry claim has no
+parameter of its own. Verified empirically against the compiled artifacts, not assumed: the
+witness layout is asserted in `packages/circuits/test/expiry.test.ts`, and the agreement of
+this table with `EXPIRY_PUBLIC_SIGNALS`, the generated verifier `Groth16VerifierExpiry` and
+`AletheiaVerifier.submitExpiryClaim` in `packages/contracts/test/PublicSignalsLayout.ts`.
+
+Expiry is the thinnest claim of the three. Its statement — that the credential was not
+expired as of `currentDate` — is the `expiryDate >= currentDate` check every claim already
+inherits from the shared base, so ExpiryClaim adds nothing beyond claiming that base for
+claim type 3. A successful proof discloses **only** that the credential was valid on the
+date asked about; the expiry date itself, like every other credential field, stays in the
+witness.
+
+| Index | Signal | Kind | Notes |
+|---|---|---|---|
+| 0 | `nullifier` | output | `Poseidon(credentialId, 3, contextId, subject)`; per credential, claim type and context. Claim type 3 makes it distinct from the same credential's age and nationality nullifiers |
+| 1 | `identityNullifier` | output | `Poseidon(identitySecret, contextId)`; identical to the age and nationality claims' for one identity in one context, because no claim type enters it — see `docs/trust-model.md` |
+| 2 | `schemaVersion` | input | pinned in-circuit to the compiled constant (`2`); `AletheiaVerifier` refuses a version it was not deployed for |
+| 3 | `issuerAx` | input | issuer BabyJubjub key x; checked against `AletheiaIssuerRegistry` |
+| 4 | `issuerAy` | input | issuer BabyJubjub key y |
+| 5 | `currentDate` | input | YYYYMMDD; contract accepts only today or yesterday UTC. The date the credential is proven unexpired on — the substance of the claim |
+| 6 | `expiryParameter` | input | pinned to `0` in-circuit (`expiryParameter === 0`); the generic claim-parameter slot age uses for `minimumAge`, unused by an expiry claim. `AletheiaVerifier` bounds it to `0`, so a non-zero value reverts `ClaimParameterOutOfRange` |
+| 7 | `contextId` | input | verifier scope tag, reduced into the field |
+| 8 | `subject` | input | holder address as `uint160`; contract requires `== msg.sender` |
+
+Nine signals total, decoded as `uint[9]` by the generated verifier, exactly like AgeClaim
+and NationalityClaim. No private credential field appears: the date of birth, nationality,
+**expiry date**, issuance date, credential id and `identitySecret` all stay in the witness.
+The claim reveals nothing but the fact of validity on `currentDate`; the expiry date is
+never a public signal.
