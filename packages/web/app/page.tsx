@@ -9,17 +9,19 @@ import type { DocumentExtractionResult } from "@aletheia/extraction/browser";
 import { DEFAULT_CONTEXT_LABEL, contextIdFromLabel } from "@/lib/context";
 import { DEPLOYMENT, etherscanTx } from "@/lib/deployment";
 import { extractImage, extractPdf, extractText } from "@/lib/extraction";
-import { proveAgeInBrowser } from "@/lib/prove";
+import { proveAgeInBrowser, proveNationalityInBrowser } from "@/lib/prove";
 import { loadMockIssuer, signReviewedCredential } from "@/lib/sign";
 import {
   connectDevSigner,
   connectInjected,
   devSignerAvailable,
   submitAgeClaim,
+  submitNationalityClaim,
   type Signer,
 } from "@/lib/submit";
 
 type InputTab = "text" | "pdf" | "image";
+type ClaimType = "age" | "nationality";
 
 interface ReviewForm {
   documentNumber: string;
@@ -37,7 +39,10 @@ interface Outcome {
   nullifier: string;
   identityNullifier: string;
   documentKey: string;
-  minimumAge: number;
+  /** What was proven, rendered for the outcome view: "age ≥ 18" or "nationality 356 (IND)". */
+  claimSummary: string;
+  /** True for a nationality claim, so the outcome can restate what was disclosed. */
+  disclosed: boolean;
   /** The block the transaction was mined in, handed to the verifier view to watch indexing. */
   block: string;
 }
@@ -64,7 +69,11 @@ export default function Page() {
   const [extraction, setExtraction] = useState<DocumentExtractionResult | null>(null);
   const [form, setForm] = useState<ReviewForm | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [claimType, setClaimType] = useState<ClaimType>("age");
   const [minimumAge, setMinimumAge] = useState(18);
+  // The nationality claim discloses the nationality on-chain, so proving is gated on an
+  // explicit acknowledgement shown before the prove button is enabled.
+  const [disclosureAck, setDisclosureAck] = useState(false);
 
   const [signer, setSigner] = useState<Signer | null>(null);
   const [busy, setBusy] = useState(false);
@@ -80,6 +89,7 @@ export default function Page() {
     setExtraction(null);
     setForm(null);
     setConfirmed(false);
+    setDisclosureAck(false);
     setOutcome(null);
     setError(null);
     setLog([]);
@@ -154,12 +164,35 @@ export default function Page() {
 
       const currentDate = todayUtcYyyymmdd();
       const contextId = contextIdFromLabel(DEFAULT_CONTEXT_LABEL);
-      say(`proving age ≥ ${minimumAge} on ${currentDate} (this runs in your browser, ~a few seconds)…`);
-      const proof = await proveAgeInBrowser(signed, { minimumAge, currentDate, contextId });
-      say("proof produced and verified locally.");
 
-      say("simulating submitAgeClaim on Sepolia…");
-      const result = await submitAgeClaim(signer, proof.calldata);
+      let result;
+      let claimSummary: string;
+      let disclosed: boolean;
+      if (claimType === "nationality") {
+        const alpha3 = form.nationalityAlpha3 ? ` (${form.nationalityAlpha3})` : "";
+        claimSummary = `nationality ${reviewed.nationality}${alpha3}`;
+        disclosed = true;
+        say(
+          `proving ${claimSummary} on ${currentDate} — this proof publicly reveals the nationality ` +
+            `(this runs in your browser, ~a few seconds)…`,
+        );
+        const proof = await proveNationalityInBrowser(signed, {
+          requiredNationality: reviewed.nationality,
+          currentDate,
+          contextId,
+        });
+        say("proof produced and verified locally.");
+        say("simulating submitNationalityClaim on Sepolia…");
+        result = await submitNationalityClaim(signer, proof.calldata);
+      } else {
+        claimSummary = `age ≥ ${minimumAge}`;
+        disclosed = false;
+        say(`proving ${claimSummary} on ${currentDate} (this runs in your browser, ~a few seconds)…`);
+        const proof = await proveAgeInBrowser(signed, { minimumAge, currentDate, contextId });
+        say("proof produced and verified locally.");
+        say("simulating submitAgeClaim on Sepolia…");
+        result = await submitAgeClaim(signer, proof.calldata);
+      }
       say(`submitted: ${result.hash}`);
       say("mined. reading ClaimVerified event…");
 
@@ -174,7 +207,8 @@ export default function Page() {
         nullifier: e.nullifier,
         identityNullifier: e.identityNullifier,
         documentKey: documentKey.toString(),
-        minimumAge,
+        claimSummary,
+        disclosed,
         block: result.receipt.blockNumber.toString(),
       });
       say("done — real proof, real transaction, real event.");
@@ -363,15 +397,56 @@ export default function Page() {
             <span className="n">3</span> Prove &amp; submit
           </h2>
 
-          <label>Prove age at least</label>
-          <input
-            type="number"
-            min={0}
-            max={120}
-            value={minimumAge}
-            onChange={(e) => setMinimumAge(Number(e.target.value))}
-            style={{ width: 120 }}
-          />
+          <label>What to prove</label>
+          <div className="tabs">
+            <button data-active={claimType === "age"} onClick={() => setClaimType("age")}>
+              Age
+            </button>
+            <button data-active={claimType === "nationality"} onClick={() => setClaimType("nationality")}>
+              Nationality
+            </button>
+          </div>
+
+          {claimType === "age" ? (
+            <>
+              <label>Prove age at least</label>
+              <input
+                type="number"
+                min={0}
+                max={120}
+                value={minimumAge}
+                onChange={(e) => setMinimumAge(Number(e.target.value))}
+                style={{ width: 120 }}
+              />
+              <p className="hint">
+                An age proof reveals only that the threshold is met — never your date of birth.
+              </p>
+            </>
+          ) : (
+            <>
+              <label>Prove nationality</label>
+              <input value={`${form.nationality}${form.nationalityAlpha3 ? ` (${form.nationalityAlpha3})` : ""}`} readOnly style={{ width: 200 }} />
+              <div className="disclosure">
+                <strong>Disclosure — this reveals your nationality.</strong> Unlike an age proof,
+                which hides the underlying value, a successful nationality claim publishes on-chain
+                that you hold nationality{" "}
+                <strong>
+                  {form.nationality}
+                  {form.nationalityAlpha3 ? ` (${form.nationalityAlpha3})` : ""}
+                </strong>
+                . Everything else in the credential — your date of birth, expiry and document
+                number — still stays on this device.
+                <label className="ack">
+                  <input
+                    type="checkbox"
+                    checked={disclosureAck}
+                    onChange={(e) => setDisclosureAck(e.target.checked)}
+                  />
+                  I understand this proof will reveal my nationality, and I want to continue.
+                </label>
+              </div>
+            </>
+          )}
 
           <div style={{ marginTop: 14 }}>
             {signer ? (
@@ -390,8 +465,15 @@ export default function Page() {
             )}
           </div>
 
-          <button disabled={!signer || busy} onClick={() => void proveAndSubmit()}>
-            {busy ? "Working…" : "Prove age & submit to Sepolia"}
+          <button
+            disabled={!signer || busy || (claimType === "nationality" && !disclosureAck)}
+            onClick={() => void proveAndSubmit()}
+          >
+            {busy
+              ? "Working…"
+              : claimType === "nationality"
+                ? "Prove nationality & submit to Sepolia"
+                : "Prove age & submit to Sepolia"}
           </button>
 
           {log.length > 0 && <div className="log">{log.join("\n")}</div>}
@@ -405,7 +487,7 @@ export default function Page() {
           </h2>
           <div className="kv">
             <span className="k">Claim</span>
-            <span className="ok">age ≥ {outcome.minimumAge}</span>
+            <span className="ok">{outcome.claimSummary}</span>
             <span className="k">Transaction</span>
             <span className="mono">
               <a href={etherscanTx(outcome.hash)} target="_blank" rel="noreferrer">
@@ -424,8 +506,9 @@ export default function Page() {
             <span className="mono">{outcome.documentKey}</span>
           </div>
           <p className="hint" style={{ marginTop: 14 }}>
-            The transaction carried only the proof and its public signals. Your date of birth,
-            nationality, expiry and document number never left this device.
+            {outcome.disclosed
+              ? "The transaction carried the proof, its public signals, and the nationality you chose to disclose. Your date of birth, expiry and document number never left this device."
+              : "The transaction carried only the proof and its public signals. Your date of birth, nationality, expiry and document number never left this device."}
           </p>
           <p style={{ marginTop: 14 }}>
             <Link href={`/verify?watch=${outcome.verificationId}&block=${outcome.block}`}>

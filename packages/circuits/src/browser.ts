@@ -10,10 +10,14 @@
 
 export {
   AGE_CLAIM,
+  NATIONALITY_CLAIM,
   ageClaimInput,
   assertAgeClaimRequest,
+  assertNationalityClaimRequest,
+  nationalityClaimInput,
   type AgeClaimRequest,
   type CircuitInput,
+  type NationalityClaimRequest,
 } from "./inputs.ts";
 
 export {
@@ -22,6 +26,12 @@ export {
   decodeAgePublicSignals,
   type AgePublicSignals,
 } from "./signals.ts";
+
+export {
+  NATIONALITY_PUBLIC_SIGNALS,
+  decodeNationalityPublicSignals,
+  type NationalityPublicSignals,
+} from "./nationality-signals.ts";
 
 export {
   toSolidityCalldata,

@@ -3,9 +3,12 @@
 Two browser surfaces, both running entirely on the device:
 
 - **Holder flow** (`/`) — takes a passport MRZ, lets the holder review and correct the
-  extracted fields, signs a `mock-dev` credential, proves an age claim, and submits it to
-  Sepolia. The passport (its MRZ, date of birth, nationality, expiry, number) never leaves
-  the browser; only the proof and its public signals go on-chain.
+  extracted fields, signs a `mock-dev` credential, proves an **age or nationality** claim,
+  and submits it to Sepolia. The passport (its MRZ, date of birth, nationality, expiry,
+  number) never leaves the browser; only the proof and its public signals go on-chain. An
+  age proof reveals only that the threshold is met; a **nationality** proof discloses the
+  nationality it asserts, so the flow shows a disclosure notice and requires an explicit
+  acknowledgement **before** proving.
 - **Verifier flow** (`/verify`) — resolves an ENS name or a wallet address, reads what it
   has proven from the subgraph, and renders each record as one of five honest states
   (`verified`, `stale`, `revoked`, `pending`, `not found`). ENS is resolved live over
