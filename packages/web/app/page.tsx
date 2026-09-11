@@ -9,19 +9,20 @@ import type { DocumentExtractionResult } from "@aletheia/extraction/browser";
 import { DEFAULT_CONTEXT_LABEL, contextIdFromLabel } from "@/lib/context";
 import { DEPLOYMENT, etherscanTx } from "@/lib/deployment";
 import { extractImage, extractPdf, extractText } from "@/lib/extraction";
-import { proveAgeInBrowser, proveNationalityInBrowser } from "@/lib/prove";
+import { proveAgeInBrowser, proveExpiryInBrowser, proveNationalityInBrowser } from "@/lib/prove";
 import { loadMockIssuer, signReviewedCredential } from "@/lib/sign";
 import {
   connectDevSigner,
   connectInjected,
   devSignerAvailable,
   submitAgeClaim,
+  submitExpiryClaim,
   submitNationalityClaim,
   type Signer,
 } from "@/lib/submit";
 
 type InputTab = "text" | "pdf" | "image";
-type ClaimType = "age" | "nationality";
+type ClaimType = "age" | "nationality" | "expiry";
 
 interface ReviewForm {
   documentNumber: string;
@@ -184,6 +185,17 @@ export default function Page() {
         say("proof produced and verified locally.");
         say("simulating submitNationalityClaim on Sepolia…");
         result = await submitNationalityClaim(signer, proof.calldata);
+      } else if (claimType === "expiry") {
+        claimSummary = `not expired (as of ${currentDate})`;
+        disclosed = false;
+        say(
+          `proving the credential is not expired as of ${currentDate} — this reveals only that ` +
+            `it is still valid, never the expiry date (this runs in your browser, ~a few seconds)…`,
+        );
+        const proof = await proveExpiryInBrowser(signed, { currentDate, contextId });
+        say("proof produced and verified locally.");
+        say("simulating submitExpiryClaim on Sepolia…");
+        result = await submitExpiryClaim(signer, proof.calldata);
       } else {
         claimSummary = `age ≥ ${minimumAge}`;
         disclosed = false;
@@ -405,6 +417,9 @@ export default function Page() {
             <button data-active={claimType === "nationality"} onClick={() => setClaimType("nationality")}>
               Nationality
             </button>
+            <button data-active={claimType === "expiry"} onClick={() => setClaimType("expiry")}>
+              Not expired
+            </button>
           </div>
 
           {claimType === "age" ? (
@@ -420,6 +435,17 @@ export default function Page() {
               />
               <p className="hint">
                 An age proof reveals only that the threshold is met — never your date of birth.
+              </p>
+            </>
+          ) : claimType === "expiry" ? (
+            <>
+              <label>Prove the credential is not expired</label>
+              <p className="hint">
+                Proves the credential is still valid as of today ({todayUtcYyyymmdd()}) — the same
+                unexpired check every claim already runs, on its own. It reveals only that the
+                credential has not expired; the expiry date itself
+                {form.expiryDate ? ` (${form.expiryDate})` : ""}, and every other field, stay on this
+                device. No value is disclosed and there is no threshold to choose.
               </p>
             </>
           ) : (
@@ -473,7 +499,9 @@ export default function Page() {
               ? "Working…"
               : claimType === "nationality"
                 ? "Prove nationality & submit to Sepolia"
-                : "Prove age & submit to Sepolia"}
+                : claimType === "expiry"
+                  ? "Prove not expired & submit to Sepolia"
+                  : "Prove age & submit to Sepolia"}
           </button>
 
           {log.length > 0 && <div className="log">{log.join("\n")}</div>}

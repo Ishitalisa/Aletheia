@@ -1,5 +1,5 @@
 /**
- * Browser Groth16 proving for the age and nationality claims.
+ * Browser Groth16 proving for the age, nationality and expiry claims.
  *
  * The witness input is assembled by the shared claim-input builders (so the browser sends
  * the circuit exactly what the Node path does), then snarkjs produces and verifies a real
@@ -14,11 +14,15 @@
 import {
   ageClaimInput,
   decodeAgePublicSignals,
+  decodeExpiryPublicSignals,
   decodeNationalityPublicSignals,
+  expiryClaimInput,
   nationalityClaimInput,
   toSolidityCalldata,
   type AgeClaimRequest,
   type AgePublicSignals,
+  type ExpiryClaimRequest,
+  type ExpiryPublicSignals,
   type Groth16Proof,
   type NationalityClaimRequest,
   type NationalityPublicSignals,
@@ -34,6 +38,10 @@ const AGE_VKEY_URL = "/circuits/age_vkey.json";
 const NATIONALITY_WASM_URL = "/circuits/nationality.wasm";
 const NATIONALITY_ZKEY_URL = "/circuits/nationality_final.zkey";
 const NATIONALITY_VKEY_URL = "/circuits/nationality_vkey.json";
+
+const EXPIRY_WASM_URL = "/circuits/expiry.wasm";
+const EXPIRY_ZKEY_URL = "/circuits/expiry_final.zkey";
+const EXPIRY_VKEY_URL = "/circuits/expiry_vkey.json";
 
 export interface BrowserProof<Decoded> {
   proof: Groth16Proof;
@@ -78,6 +86,44 @@ export async function proveAgeInBrowser(
   const decoded = decodeAgePublicSignals(publicSignals);
   if (decoded.minimumAge !== request.minimumAge || decoded.currentDate !== request.currentDate) {
     throw new Error("public signals do not match the requested claim");
+  }
+  if (decoded.schemaVersion !== SCHEMA_VERSION) {
+    throw new Error(
+      `proof declares schemaVersion ${decoded.schemaVersion}, expected ${SCHEMA_VERSION}`,
+    );
+  }
+
+  const calldata = await toSolidityCalldata(proof, publicSignals);
+  return { proof, publicSignals, decoded, calldata };
+}
+
+/**
+ * Prove an expiry claim entirely in the browser, mirroring the age path but with the
+ * expiry circuit's artifacts. The claim reveals only that the credential was unexpired as
+ * of `currentDate`; the expiry date itself, like every other field, stays on the device.
+ */
+export async function proveExpiryInBrowser(
+  signed: SignedCredential,
+  request: ExpiryClaimRequest,
+): Promise<BrowserProof<ExpiryPublicSignals>> {
+  const input = expiryClaimInput(signed, request);
+
+  const { proof, publicSignals } = (await snarkjs.groth16.fullProve(
+    input,
+    EXPIRY_WASM_URL,
+    EXPIRY_ZKEY_URL,
+  )) as { proof: Groth16Proof; publicSignals: string[] };
+
+  if (!(await snarkjs.groth16.verify(await verificationKey(EXPIRY_VKEY_URL), publicSignals, proof))) {
+    throw new Error("produced a proof that does not verify locally; refusing to return it");
+  }
+
+  const decoded = decodeExpiryPublicSignals(publicSignals);
+  if (decoded.currentDate !== request.currentDate) {
+    throw new Error("public signals do not match the requested claim");
+  }
+  if (decoded.expiryParameter !== 0) {
+    throw new Error(`proof carries a non-zero expiryParameter (${decoded.expiryParameter})`);
   }
   if (decoded.schemaVersion !== SCHEMA_VERSION) {
     throw new Error(

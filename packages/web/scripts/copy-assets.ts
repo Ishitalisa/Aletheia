@@ -22,6 +22,7 @@ const require = createRequire(import.meta.url);
 
 const circuitsBuild = join(repoRoot, "packages", "circuits", "build", "age");
 const nationalityBuild = join(repoRoot, "packages", "circuits", "build", "nationality");
+const expiryBuild = join(repoRoot, "packages", "circuits", "build", "expiry");
 const publicCircuits = join(webRoot, "public", "circuits");
 const publicOcr = join(webRoot, "public", "ocr");
 const srcAbi = join(webRoot, "src", "abi");
@@ -61,6 +62,21 @@ const copies: Copy[] = [
   {
     from: join(nationalityBuild, "nationality_vkey.json"),
     to: join(publicCircuits, "nationality_vkey.json"),
+    hint: "pnpm --filter @aletheia/circuits run build",
+  },
+  {
+    from: join(expiryBuild, "expiry_js", "expiry.wasm"),
+    to: join(publicCircuits, "expiry.wasm"),
+    hint: "pnpm --filter @aletheia/circuits run build",
+  },
+  {
+    from: join(expiryBuild, "expiry_final.zkey"),
+    to: join(publicCircuits, "expiry_final.zkey"),
+    hint: "pnpm --filter @aletheia/circuits run build",
+  },
+  {
+    from: join(expiryBuild, "expiry_vkey.json"),
+    to: join(publicCircuits, "expiry_vkey.json"),
     hint: "pnpm --filter @aletheia/circuits run build",
   },
   // The verifier ABI and the deployment manifest come from their canonical sources so the

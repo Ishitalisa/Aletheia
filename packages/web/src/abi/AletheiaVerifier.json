@@ -272,12 +272,38 @@
   },
   {
     "inputs": [],
+    "name": "CLAIM_TYPE_EXPIRY",
+    "outputs": [
+      {
+        "internalType": "uint8",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "CLAIM_TYPE_NATIONALITY",
     "outputs": [
       {
         "internalType": "uint8",
         "name": "",
         "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MAX_EXPIRY_PARAMETER",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -436,6 +462,40 @@
       }
     ],
     "name": "submitAgeClaim",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "verificationId",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256[2]",
+        "name": "a",
+        "type": "uint256[2]"
+      },
+      {
+        "internalType": "uint256[2][2]",
+        "name": "b",
+        "type": "uint256[2][2]"
+      },
+      {
+        "internalType": "uint256[2]",
+        "name": "c",
+        "type": "uint256[2]"
+      },
+      {
+        "internalType": "uint256[9]",
+        "name": "publicSignals",
+        "type": "uint256[9]"
+      }
+    ],
+    "name": "submitExpiryClaim",
     "outputs": [
       {
         "internalType": "bytes32",
