@@ -19,6 +19,7 @@ export interface DeploymentInfo {
   verifierAddress: `0x${string}`;
   ageClaimType: number;
   nationalityClaimType: number;
+  expiryClaimType: number;
   mockIssuerId: `0x${string}`;
   mockIssuerLabel: string;
 }
@@ -29,6 +30,7 @@ export const DEPLOYMENT: DeploymentInfo = {
   verifierAddress: deployment.contracts.AletheiaVerifier.address as `0x${string}`,
   ageClaimType: deployment.ageClaim.claimType,
   nationalityClaimType: deployment.nationalityClaim.claimType,
+  expiryClaimType: deployment.expiryClaim.claimType,
   mockIssuerId: deployment.mockIssuer.issuerId as `0x${string}`,
   mockIssuerLabel: deployment.mockIssuer.label,
 };

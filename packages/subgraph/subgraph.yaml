@@ -1,13 +1,15 @@
 # Aletheia subgraph manifest.
 #
 # network: sepolia — the chain the v2 contracts are deployed to (docs/deployments.md).
-# One dataSource per contract, except AletheiaVerifier, which appears twice: the stage-17
-# redeploy (Day 24) produced a new verifier carrying submitNationalityClaim, and the
-# previous verifier's age records are kept by indexing it as a second, historical data
-# source rather than orphaning them (Decision 2). Both share one mapping and handler —
-# ClaimVerified has the identical signature on both — so age and nationality records from
-# either verifier land in the same Verification entity. Each startBlock is that contract's
-# own deploy block, so indexing never scans a block before the contract existed.
+# One dataSource per contract, except AletheiaVerifier, which appears three times: the
+# stage-18 redeploy (Day 26) produced a new verifier carrying submitExpiryClaim, and the two
+# previous verifiers' records are kept by indexing them as historical data sources rather
+# than orphaning them (Decision 2) — the stage-17 verifier (age + the first nationality
+# claim) and the stage-8..16 verifier (the original age records). All three share one mapping
+# and handler — ClaimVerified has the identical signature on every one — so age, nationality
+# and expiry records from any verifier land in the same Verification entity. Each startBlock
+# is that contract's own deploy block, so indexing never scans a block before the contract
+# existed.
 #
 # No `eth_call` anywhere: every field a record needs is carried by the event, per
 # .cursor/rules/ethereum.mdc. The abis below exist only so graph-cli can decode the event
@@ -18,9 +20,34 @@ schema:
 indexerHints:
   prune: auto
 dataSources:
-  # The stage-17 AletheiaVerifier (redeployed Day 24): age and nationality claims.
+  # The stage-18 AletheiaVerifier (redeployed Day 26): age, nationality and expiry claims.
   - kind: ethereum/contract
     name: AletheiaVerifier
+    network: sepolia
+    source:
+      address: "0xB1362a40da22818993b16139da85092a7Bf4FF01"
+      abi: AletheiaVerifier
+      startBlock: 11682101
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Profile
+        - Issuer
+        - Verification
+      abis:
+        - name: AletheiaVerifier
+          file: ./abis/AletheiaVerifier.json
+      eventHandlers:
+        - event: ClaimVerified(indexed bytes32,indexed address,indexed uint8,bytes32,uint256,uint32,bytes32,bytes32,bytes32,uint64)
+          handler: handleClaimVerified
+      file: ./src/verifier.ts
+  # The stage-17 AletheiaVerifier (redeployed Day 24): historical age and nationality
+  # records, including the first real nationality claim, kept indexed so the redeploy does
+  # not orphan them. Same mapping and handler as the new verifier.
+  - kind: ethereum/contract
+    name: AletheiaVerifierStage17
     network: sepolia
     source:
       address: "0xce95C47Ce991B6DB19cF0c55D0fAe3C6CA14a1cA"

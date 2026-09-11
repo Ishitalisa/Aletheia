@@ -592,8 +592,35 @@ deploy are Day 26 (out of this window's scope).
 
 ## Day 26 — Stage 18: setup, verifier, contract, deploy
 
+- [x] Trusted setup, export the verifier, freeze the layout, add `submitExpiryClaim`,
+      redeploy, repoint the subgraph, add the holder path, prove the boundary on-chain.
+
 **Exit criteria** — same as day 24, plus the `expiryDate == currentDate` boundary proven
-**on-chain**.
+**on-chain**. **Met** — the expiry circuit got its phase-2 setup (`setup.ts` now loops age +
+nationality + expiry) over the existing local-development ptau, provenance recorded as such;
+the age and nationality zkeys and deployed verifiers are untouched. `export-verifier.ts`
+generated `Groth16VerifierExpiry.sol`, byte-for-byte asserted against the proving key.
+`AletheiaVerifier` gained `submitExpiryClaim` (claim type 3) on the shared `_submitClaim`
+with parameter bound `MAX_EXPIRY_PARAMETER = 0`, so a non-zero parameter reverts; age and
+nationality are unchanged. The `docs/public-signals.md` ExpiryClaim layout is frozen
+(`expiryParameter` pinned to zero in the generic slot) and cross-checked. Contracts **90/90**
+(+23), including the boundary proven in-suite. `AletheiaVerifier` was redeployed live to
+Sepolia at `0xB1362a40da22818993b16139da85092a7Bf4FF01` (block 11682101) with the new
+`Groth16VerifierExpiry` at `0xD06938Ad57FDfE392E88dD249A4FE92D056dCDA2` (block 11682096), via
+an incremental Ignition module reusing the registry and both existing verifiers and wiring
+all three claim types (verified on-chain: `claimVerifier[1..3]` and `issuerRegistry`). Both
+new contracts are verified on Etherscan and Sourcify; the manifest and `docs/deployments.md`
+are updated, the previous verifiers kept under `previousDeployments`. The subgraph was
+redeployed as **v0.0.4** indexing three `AletheiaVerifier` data sources so no earlier record
+is orphaned (Decision 2); it synced clean. The holder flow gained an expiry path (no
+disclosure). Driven live in a browser end to end: extract → review (expiry set to today) →
+select Not expired → dev signer → a real in-browser Groth16 expiry proof →
+`submitExpiryClaim` mined on Sepolia (verificationId `0xa3120de1…fda0a8ea`, tx `0x2c3d59…`,
+block 11682200) → the verifier flow rendered it **verified** ("not expired (valid on
+2026-09-11)"). This is the `expiryDate == currentDate` boundary **on-chain**: the credential's
+expiry was set to today and proven still valid as of today. The endpoint now returns seven
+records — five age, one nationality, one expiry. Deploy, subgraph and browser run all real;
+`next build` clean; full workspace typecheck green.
 
 ## Day 27 — Stage 19: multi-claim end-to-end
 

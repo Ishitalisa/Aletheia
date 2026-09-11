@@ -124,13 +124,13 @@ export interface SubmitResult {
   event: ClaimVerifiedEvent;
 }
 
-/** The AletheiaVerifier entrypoints this app can submit to; both take the same calldata shape. */
-type ClaimFunction = "submitAgeClaim" | "submitNationalityClaim";
+/** The AletheiaVerifier entrypoints this app can submit to; all take the same calldata shape. */
+type ClaimFunction = "submitAgeClaim" | "submitNationalityClaim" | "submitExpiryClaim";
 
 /**
  * Simulate the claim submission (reading back the verificationId and failing before gas if
  * anything is wrong), send it, wait for the receipt, and pull the `ClaimVerified` event.
- * Age and nationality share this path — only the entrypoint name differs.
+ * Age, nationality and expiry share this path — only the entrypoint name differs.
  */
 async function submitClaim(
   signer: Signer,
@@ -174,4 +174,11 @@ export async function submitNationalityClaim(
   calldata: SolidityCalldata,
 ): Promise<SubmitResult> {
   return submitClaim(signer, calldata, "submitNationalityClaim");
+}
+
+export async function submitExpiryClaim(
+  signer: Signer,
+  calldata: SolidityCalldata,
+): Promise<SubmitResult> {
+  return submitClaim(signer, calldata, "submitExpiryClaim");
 }

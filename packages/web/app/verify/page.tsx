@@ -48,6 +48,9 @@ function IssuerBadge({ label }: { label: string }) {
 function claimLabel(v: Verification): string {
   if (v.claimType === 1) return `age ≥ ${v.claimParameter}`;
   if (v.claimType === 2) return `nationality ${v.claimParameter}`;
+  // Expiry has no parameter (the slot is pinned to zero); the substance is the date the
+  // credential was proven still valid on, which the record carries as credentialValidOn.
+  if (v.claimType === 3) return `not expired (valid on ${yyyymmddToIso(v.credentialValidOn)})`;
   return `claim type ${v.claimType}, parameter ${v.claimParameter}`;
 }
 
