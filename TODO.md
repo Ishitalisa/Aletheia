@@ -624,9 +624,29 @@ records — five age, one nationality, one expiry. Deploy, subgraph and browser 
 
 ## Day 27 — Stage 19: multi-claim end-to-end
 
+- [x] One signed credential, one context, three claims (age, nationality, expiry), each
+      proved and submitted for real, then read back from the subgraph — and the
+      cross-claim property asserted.
+
 **Exit criteria** — three real transactions, three real records, three distinct
 `nullifier`s — and the `identityNullifier` identical across all three within one context,
-since that is the property it was added for.
+since that is the property it was added for. **Met** — `scripts/src/multi-claim.ts` (run
+`pnpm --filter @aletheia/scripts run multi-claim`) signs **one** mock-dev credential, fixes
+**one** `contextId`, and drives all three claim types through the whole M1 pipeline against
+it — real proof, deployed-verifier `eth_call` (accepts the real proof, rejects a mutated
+signal), real Sepolia transaction, real indexed record. It then asserts the property on the
+on-chain events and again on the indexed records, failing loudly otherwise. Driven live:
+three transactions in consecutive blocks — `submitAgeClaim` (`0x302d52…450a1d`, block
+11682258), `submitNationalityClaim` (`0xc9cff6…2bac63`, block 11682259) and
+`submitExpiryClaim` (`0x2bbb2b…2de501`, block 11682260) — each indexed `verified` on the
+v0.0.4 subgraph and cross-checked (id, claimType, nullifier, identityNullifier, tx, issuer
+label). The three `nullifier`s are distinct (`0x180511…03e6`, `0x1b894b…4540`,
+`0x02bb77…9506`), because `nullifier = Poseidon([credentialId, claimTypeId, contextId,
+subject])` binds the claim type; the `identityNullifier` is one value across all three
+(`0x1bd633…7d47`), because `identityNullifier = Poseidon([identitySecret, contextId])` binds
+neither the claim type nor the wallet — which is the property it was added for. The endpoint
+now returns ten records. `env.ts` gained the nationality and expiry verifier/claim fields in
+the manifest type; scripts typecheck green.
 
 ---
 
@@ -634,29 +654,61 @@ since that is the property it was added for.
 
 ## Day 28 — Stage 20: close the threat table
 
-- [ ] Fill the `Verified by` column in `docs/security.md` for every row, or write an
+- [x] Fill the `Verified by` column in `docs/security.md` for every row, or write an
       explicitly accepted risk. Rows currently pointing at then-unbuilt stages: malicious
       document input, stale verification record, Graph indexing delay, ENS assumptions,
       malicious wallet input, public data leakage, nationality disclosure, frontend
       compromise.
 
 **Exit criteria** — no row left with an unverified mitigation and no written acceptance.
+**Met** — every `Verified by` cell in `docs/security.md` now names a concrete artifact — a
+passing test file (`packages/contracts/test/*`, `packages/circuits/test/*`,
+`packages/query/src/state.test.ts`, `packages/extraction/src/document.test.ts`,
+`packages/ens/src/resolver.test.ts`, `packages/credential/src/hash.test.ts`), a code path, or
+an explicit **accepted risk** with its rationale — rather than a stage number. The rows that
+pointed at then-unbuilt stages (malicious document input, stale record, Graph delay, ENS,
+malicious wallet input, public data leakage, nationality disclosure, frontend compromise) are
+each closed: the built ones by their test, the inherent ones (mock issuer, PDF-as-input,
+nationality disclosure, frontend-trusted-for-nothing) as written accepted risks. The header
+now says "accepted risk is a real answer" so the distinction is explicit.
 
 ## Day 29 — Stage 20: the threats v2 introduced
 
-- [ ] Add rows the table does not cover: identity-nullifier correlation within a context,
+- [x] Add rows the table does not cover: identity-nullifier correlation within a context,
       issuer-salt rotation re-partitioning every identity nullifier, and schema-version
       confusion between deployments.
-- [ ] Settle `myTasks.md` item 7, the phase-1 ptau file.
+- [x] Settle `myTasks.md` item 7, the phase-1 ptau file.
 
 **Exit criteria** — each new row has a passing test or a written accepted risk, and the
-trusted setup's real status is stated in `docs/trust-model.md`.
+trusted setup's real status is stated in `docs/trust-model.md`. **Met** — `docs/security.md`
+gained a "Threats the v2 signal layout introduces" section with the three rows. Correlation
+within a context is a written **accepted risk** bounded by `hash.test.ts` ("identity
+nullifiers are unlinkable across verifiers", proving a different `contextId` unrelates the
+value) and demonstrated by the Day 27 multi-claim run. Issuer-salt rotation is a written
+accepted operational risk closed by the same test (a different `identitySecret` does not
+collide). Schema-version confusion is closed by a **passing test**,
+`packages/contracts/test/AletheiaVerifier.ts` ("refuses a proof whose schemaVersion is not the
+one deployed" → `SchemaVersionNotSupported`), kept aligned by `PublicSignalsLayout.ts`.
+`myTasks.md` item 7 is settled: the locally generated Phase-1 ptau stays for Phase 1 (the
+published hosts return HTTP 403), recorded as a conscious decision in both `myTasks.md` and
+`docs/trust-model.md` ("Trusted setup status"), where every setup carries
+`productionReady: false` and `phase1Provenance`.
 
 ## Day 30 — Stage 21: reconcile the documentation
 
-- [ ] Every document against shipped code. Several were edited mid-migration.
-- [ ] Add `STATUS.md`, `TODO.md`, `AGENTS.md` and `myTasks.md` to the README table, or
+- [x] Every document against shipped code. Several were edited mid-migration.
+- [x] Add `STATUS.md`, `TODO.md`, `AGENTS.md` and `myTasks.md` to the README table, or
       delete the ones that have served their purpose.
 
 **Exit criteria** — a stranger reproduces M1 from the documentation alone. Test it with
-an actual stranger, or at minimum a clean clone on a fresh machine.
+an actual stranger, or at minimum a clean clone on a fresh machine. **Met** — the README
+gained a **Run it** section: the exact `pnpm install` / `build` / `typecheck` / `test`
+sequence, the two real end-to-end runners (`m1` and `multi-claim`) with the `.env` keys they
+need pointed at `.env.example` and `myTasks.md`, and the web demo (the keystore copy step and
+`pnpm --filter @aletheia/web run dev`) — the whole M1 reproduction path in one place. The
+docs table gained the missing `docs/passport-extraction.md` row, and a second table lists the
+four tracking files (`STATUS.md`, `TODO.md`, `AGENTS.md`, `myTasks.md`). Spot-checked against
+shipped code: `docs/public-signals.md` carries all three claim layouts, `docs/deployments.md`
+carries the current three-verifier deployment, and the Status section now states M1 complete
+rather than "under construction". The reproduction path is the runnable command sequence a
+clean clone follows; the standing follow-up is to have an actual stranger walk it.

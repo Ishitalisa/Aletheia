@@ -113,6 +113,12 @@ Any claim that a mock-signed credential proves government identity would be fals
   all. Which one was used is recorded in `build/<circuit>/setup.json` as
   `phase1Provenance`, so the two can never be confused. Set `ALETHEIA_PTAU` to a local
   copy of the published file to use the real ceremony instead.
+
+  **Decision (Day 29):** for Phase 1 the locally generated file **stays**, precisely because
+  the published hosts are unreachable to fetch-and-pin today. This is a conscious, recorded
+  choice, not an oversight — `productionReady: false` and `phase1Provenance` make it legible
+  in every build. Switching to the published ceremony (via `ALETHEIA_PTAU`) is a prerequisite
+  for any real issuer, together with the multi-party phase 2 below.
 - **Phase 2 (per circuit):** **single contributor** during development. Whoever ran the
   contribution could forge proofs if they retained the toxic waste. The beacon value in
   `scripts/setup.ts` is a fixed development constant, not public randomness, and is

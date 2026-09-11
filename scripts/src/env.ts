@@ -60,6 +60,12 @@ export interface DeployedContract {
   deployBlock: number;
 }
 
+/** One claim type as recorded in the manifest. */
+export interface ManifestClaim {
+  claimType: number;
+  setClaimVerifierBlock: number;
+}
+
 /** The committed Sepolia deployment manifest. */
 export interface DeploymentManifest {
   network: string;
@@ -68,10 +74,14 @@ export interface DeploymentManifest {
   contracts: {
     AletheiaIssuerRegistry: DeployedContract;
     Groth16VerifierAge: DeployedContract;
+    Groth16VerifierNationality: DeployedContract;
+    Groth16VerifierExpiry: DeployedContract;
     AletheiaVerifier: DeployedContract;
     AletheiaProfile: DeployedContract;
   };
-  ageClaim: { claimType: number; setClaimVerifierBlock: number };
+  ageClaim: ManifestClaim;
+  nationalityClaim: ManifestClaim;
+  expiryClaim: ManifestClaim;
   mockIssuer: { issuerId: `0x${string}`; label: string; registeredBlock: number };
 }
 

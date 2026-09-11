@@ -6,7 +6,8 @@
   "description": "The cross-package end-to-end runner. One command drives the whole pipeline against real infrastructure: signed credential, circuit, proof, local verify, Solidity verify, Sepolia transaction, event, Graph, verifier query.",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "m1": "node --experimental-strip-types --no-warnings src/m1.ts"
+    "m1": "node --experimental-strip-types --no-warnings src/m1.ts",
+    "multi-claim": "node --experimental-strip-types --no-warnings src/multi-claim.ts"
   },
   "dependencies": {
     "@aletheia/circuits": "workspace:*",

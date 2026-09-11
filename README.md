@@ -50,6 +50,46 @@ per-context nullifier, and the holder's address. A successful nationality claim
 necessarily reveals the nationality it was asked about; the UI states this before
 proving.
 
+## Run it
+
+Prerequisites: Node ≥ 22.6, pnpm 11, and a Sepolia RPC URL. The end-to-end runners also
+need a funded throwaway Sepolia key and the deployed subgraph endpoint; the exact keys are
+listed in `.env.example` and in `myTasks.md`.
+
+```bash
+pnpm install
+pnpm -r run build      # build every workspace package
+pnpm -r run typecheck  # green across the workspace
+pnpm -r run test       # unit + contract + circuit suites
+```
+
+**End-to-end against real infrastructure** (copy `.env.example` to `.env` and fill it in
+first):
+
+```bash
+# One claim, all the way: signed credential -> Groth16 proof -> deployed verifier ->
+# real Sepolia tx -> ClaimVerified event -> indexed subgraph record, read back.
+pnpm --filter @aletheia/scripts run m1
+
+# All three claim types for one credential in one context, proving the property the
+# identity nullifier exists for: three distinct nullifiers, one shared identityNullifier.
+pnpm --filter @aletheia/scripts run multi-claim
+```
+
+**The demo (holder + verifier web app):**
+
+```bash
+# one-time: copy the mock issuer keystore in so the app can sign on-device
+cp packages/issuer-mock/keys/issuer-mock.json packages/web/public/mock-issuer-keystore.json
+pnpm --filter @aletheia/web run dev   # http://localhost:3000
+```
+
+The holder flow (`/`) extracts a passport MRZ, lets you review it, proves an **age**,
+**nationality**, or **not-expired** claim in the browser, and submits it to Sepolia — the
+passport never leaves the device. The verifier flow (`/verify`) looks up an ENS name or
+address and renders each record as one of five honest states, live from the subgraph. Full
+setup and both signer paths are in `packages/web/README.md`.
+
 ## Documentation
 
 | Document | Contents |
@@ -60,13 +100,28 @@ proving.
 | `docs/credential-schema.md` | Normalized credential v1 and signed-message layout |
 | `docs/date-format.md` | Canonical date representation and boundary behaviour |
 | `docs/public-signals.md` | Frozen public-signal order per circuit |
-| `docs/security.md` | Threat model and mitigations |
+| `docs/passport-extraction.md` | TD3 MRZ extraction, the ICAO mapping and its limits |
+| `docs/security.md` | Threat model and mitigations, with the artifact that verifies each row |
 | `docs/deployments.md` | Deployed contract addresses per network |
 | `docs/phase2-digilocker.md` | Replacing the mock issuer with a real credential source |
 | `docs/phase2-ens-subnames.md` | Why Phase 1 issues no ENS subnames, and what issuing them would require |
 
+The four working files that track the build, rather than the design:
+
+| File | Contents |
+|---|---|
+| `STATUS.md` | Current state: what is complete, in progress, and pending |
+| `TODO.md` | Day-by-day task breakdown, each with its exit criteria |
+| `AGENTS.md` | Working agreement — how contributors (human and agent) work on this repo |
+| `myTasks.md` | Work only a human can unblock (API keys, funded accounts, hosted signups) |
+
 ## Status
 
-Under construction, stage by stage, against the plan in `docs/architecture.md`.
-Nothing is simulated: no placeholder proofs, transaction hashes, GraphQL responses,
-ENS records, or verification results exist in this repository.
+Milestone M1 is complete: the full pipeline runs end to end against real infrastructure —
+three claim types (age, nationality, expiry), a browser holder flow, a verifier flow, a
+deployed subgraph, and live ENS resolution. `STATUS.md` has the current detail and `TODO.md`
+the day-by-day record.
+
+Nothing is simulated: no placeholder proofs, transaction hashes, GraphQL responses, ENS
+records, or verification results exist in this repository. Every verification the app shows
+is backed by a real on-chain transaction anyone can inspect.

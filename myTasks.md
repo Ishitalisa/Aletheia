@@ -141,11 +141,22 @@ development file**. `.cursor/rules/zk-proof.mdc` requires a published Perpetual 
 Tau file pinned by hash, and `docs/security.md` permits a local one only when it is
 recorded as such.
 
-- [ ] Either download a published Perpetual Powers of Tau file of the right power and
+- [x] Either download a published Perpetual Powers of Tau file of the right power and
   ```
   pin its hash, or decide the local file stays for Phase 1 and say so explicitly in
   `docs/trust-model.md`.
   ```
+
+  **Decided (Day 29): the locally generated Phase-1 file stays for Phase 1.** Both official
+  Perpetual Powers of Tau hosts (the `zkevm` Google Storage bucket and the legacy Hermez S3
+  bucket) currently return HTTP 403 for every power, so a published file cannot be fetched to
+  pin. `scripts/setup.ts` already falls back to generating phase 1 locally and records which
+  was used in `build/<circuit>/setup.json` as `phase1Provenance`, and every setup record
+  carries `productionReady: false`. This is stated explicitly in `docs/trust-model.md`
+  ("Trusted setup status"), so the build no longer reads as a real ceremony to anyone who does
+  not check the output. Setting `ALETHEIA_PTAU` to a local copy of the published file switches
+  back to the real ceremony when one becomes reachable — the requirement before any real
+  issuer is registered, alongside a multi-party phase 2.
 
 Either answer is defensible. Leaving it undecided is not, because the current state reads
 as a real ceremony to anyone who does not check the build output.
