@@ -1,7 +1,9 @@
 # Passport extraction (camera scan → normalized credential)
 
-How a photographed passport page becomes a normalized credential. Nothing here is
-implemented yet; this is the normative target for stage 15.
+How a photographed passport page becomes a normalized credential. The MRZ parser (stage
+15, day 17) and image/PDF input (stage 15, day 18) are implemented in
+`packages/extraction`; the "Where extraction runs" and "Image and PDF input" sections below
+record what shipped. The rest of this document is the normative target the code is held to.
 
 The one sentence that governs this whole document: **extraction produces untrusted
 candidate fields, never evidence.** A camera scan is pixels. OCR turns pixels into text.
@@ -145,6 +147,43 @@ Phase 1 and exactly why the issuer is labelled `mock-dev` on-chain.
 
 The user reviews and corrects every extracted field before anything is signed. Extraction
 saves typing; it is not an authority.
+
+## Image and PDF input
+
+The holder can hand extraction three things — the two MRZ lines typed in, a photo/scan
+image, or a PDF — and all three converge on one parser. Each source is decoded to plain
+text, the two 44-character MRZ lines are located in that text, and those lines go through
+the same `parseTd3Mrz` the typed path uses. An image and a PDF of one passport therefore
+reach byte-identical candidate fields to typing its MRZ; there is only ever one parser, so
+there is only ever one set of rules for check digits, century inference and nationality.
+
+A camera scan needs no separate path: the browser captures a frame as an image, and the
+image path consumes it. What "image" means is encoded-image bytes.
+
+Everything runs on the device, off the main thread. `packages/extraction` decodes both
+sources with browser-capable libraries — pdf.js for the PDF text layer, a WebAssembly
+Tesseract build with a committed MRZ-specific model for OCR — driven from a Web Worker so a
+large file never freezes the UI. There is no server-side parser, and extraction issues no
+network request at all: the OCR model and its wasm core are bundled and loaded from disk,
+never a CDN. The gate for this is a test that severs every socket and `fetch` around the
+extraction and asserts the fixture image and fixture PDF still reach the fields.
+
+Four properties bound what a hostile or malformed file can do, because the file is
+untrusted input in exactly the sense the MRZ text is:
+
+- **PDF JavaScript is disabled.** pdf.js is never given its scripting layer, so a PDF's
+  `OpenAction` and field scripts do not run, and `isEvalSupported` is off so pdf.js will
+  not use `eval` for its own parsing either.
+- **A byte cap and a page cap** (`MAX_DOCUMENT_BYTES`, `MAX_PDF_PAGES`) refuse a file large
+  enough to exhaust memory or a PDF with enough pages to exhaust CPU, before decoding.
+- **Extracted text is never evaluated.** The strings the decoders return are treated as
+  data — found and parsed — and never passed to `eval`, `Function`, or a template.
+
+The OCR fixture is a clean, high-contrast render of the MRZ, which is the best case a
+cropped data page or a good scan approximates; OCR is only ever exact on an image it can
+actually read, so the fixture is a legitimate clean scan rather than a shortcut. The model
+is `mrz.traineddata` from the DoubangoTelecom `tesseractMRZ` project (BSD-3-Clause),
+redistributed unmodified with its licence under `packages/extraction/assets`.
 
 ## What this cannot do, and the way out
 

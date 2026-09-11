@@ -81,8 +81,17 @@ module owns every encoding. A valid Indian fixture extracts all fields; a corrup
 digit reports **which** field failed; a would-be-centenarian date of birth returns
 *ambiguous* and an ICAO code with no ISO numeric (e.g. the specimen's `UTO`) returns
 *unsupported* — neither is ever guessed. Extraction produces candidate fields, never
-evidence: it holds no key and touches no network. The next task is **Day 18**, image and
-PDF input in a worker (Part 3, product).
+evidence: it holds no key and touches no network. Day 18 is now done: **image and PDF
+input** (Part 3, product). `packages/extraction` grew three converging input paths — typed
+MRZ text, an image (real tesseract.js OCR with a committed MRZ-specific model), and a PDF
+(pdf.js text layer, document JavaScript disabled) — that each decode to text, locate the two
+44-character MRZ lines, and run the **same** `parseTd3Mrz`. A committed fixture image and a
+committed fixture PDF of one Indian specimen both extract to the identical candidate fields
+the raw MRZ yields, and the gate test severs `http`/`https`/`fetch` around each run and
+asserts zero network hits: the wasm core and the model load from disk, never a CDN. Byte and
+page caps bound a hostile file before decode, and extracted text is only ever parsed, never
+evaluated. Extraction runs off the main thread through a Web Worker transport over the same
+tested core. The next task is **Day 19**, `documentKey` derivation (Part 3, product).
 
 ## Build status
 
@@ -97,13 +106,14 @@ PDF input in a worker (Part 3, product).
 | `packages/subgraph` | **6 matchstick tests passing** (Day 11); `graph codegen`/`graph build` clean, no `eth_call`; deployed to Studio (Day 12), slug `aletheia` v0.0.2, synced clean |
 | `packages/query` | **40 of 40 passing** (Day 14 done, +13 for the five-state derivation); `scripts/check.ts` and `scripts/states.ts` pass live against the deployed Studio endpoint |
 | `packages/ens` | **11 of 11 passing** (Day 15 done); pure seams unit-tested (env validation, UTS-46 name normalisation, address checksumming); `scripts/check.ts` passes live against real mainnet ENS through the Universal Resolver |
-| `packages/extraction` | **18 of 18 passing** (Day 17 done): TD3 MRZ parsing, check digits anchored to the ICAO 9303 specimen, century inference, sex; a valid Indian fixture extracts, a failing check digit names its field, ambiguous century and unmapped nationality return without guessing. `typecheck`/`build` clean. |
+| `packages/extraction` | **32 of 32 passing** (Days 17–18 done): Day 17 TD3 MRZ parsing (check digits anchored to the ICAO 9303 specimen, century inference, sex); Day 18 image and PDF input — `extractFromMrzText`/`extractFromImage`/`extractFromPdf` converge on the one parser, a committed fixture image (real offline OCR, MRZ model) and fixture PDF (pdf.js text layer, JS disabled) reach the same fields as the raw MRZ, the gate test proves zero network by blocking every socket, and byte/page caps bound input before decode. `typecheck`/`build` clean; built `dist` smoke-tested on both fixtures. |
 | `scripts` | **no unit tests by design** (Day 16 done): it is the cross-package end-to-end runner, and its whole product is a live run against real infrastructure, `pnpm --filter @aletheia/scripts run m1`. `typecheck` clean. A recorded green run is below. |
 
 `packages/web` is named in `docs/architecture.md` and does not exist yet (Day 20);
-`packages/extraction` (Day 17) is the pure MRZ parser it will consume, split out so it is
-buildable and testable without a browser. The top-level `scripts` M1 runner exists (Day
-16). `packages/subgraph` exists with its
+`packages/extraction` (Days 17–18) is what it will consume — the MRZ parser plus the
+image/PDF input paths and their Web Worker transport, all browser-capable and offline, and
+still buildable and testable under Node without a browser. The top-level `scripts` M1
+runner exists (Day 16). `packages/subgraph` exists with its
 schema, manifest, four implemented event handlers and matchstick coverage (Days 10–11), and
 is deployed to Studio (Day 12, slug `aletheia` v0.0.2, synced clean).
 
