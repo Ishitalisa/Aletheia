@@ -44,9 +44,10 @@ function IssuerBadge({ label }: { label: string }) {
   return <span className="mono">{label}</span>;
 }
 
-/** How a claim reads to a verifier. Age today; nationality and expiry decode the same slot later. */
+/** How a claim reads to a verifier. The generic parameter slot decodes per claim type. */
 function claimLabel(v: Verification): string {
   if (v.claimType === 1) return `age ≥ ${v.claimParameter}`;
+  if (v.claimType === 2) return `nationality ${v.claimParameter}`;
   return `claim type ${v.claimType}, parameter ${v.claimParameter}`;
 }
 

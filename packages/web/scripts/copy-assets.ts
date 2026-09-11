@@ -21,6 +21,7 @@ const repoRoot = join(webRoot, "..", "..");
 const require = createRequire(import.meta.url);
 
 const circuitsBuild = join(repoRoot, "packages", "circuits", "build", "age");
+const nationalityBuild = join(repoRoot, "packages", "circuits", "build", "nationality");
 const publicCircuits = join(webRoot, "public", "circuits");
 const publicOcr = join(webRoot, "public", "ocr");
 const srcAbi = join(webRoot, "src", "abi");
@@ -45,6 +46,21 @@ const copies: Copy[] = [
   {
     from: join(circuitsBuild, "age_vkey.json"),
     to: join(publicCircuits, "age_vkey.json"),
+    hint: "pnpm --filter @aletheia/circuits run build",
+  },
+  {
+    from: join(nationalityBuild, "nationality_js", "nationality.wasm"),
+    to: join(publicCircuits, "nationality.wasm"),
+    hint: "pnpm --filter @aletheia/circuits run build",
+  },
+  {
+    from: join(nationalityBuild, "nationality_final.zkey"),
+    to: join(publicCircuits, "nationality_final.zkey"),
+    hint: "pnpm --filter @aletheia/circuits run build",
+  },
+  {
+    from: join(nationalityBuild, "nationality_vkey.json"),
+    to: join(publicCircuits, "nationality_vkey.json"),
     hint: "pnpm --filter @aletheia/circuits run build",
   },
   // The verifier ABI and the deployment manifest come from their canonical sources so the

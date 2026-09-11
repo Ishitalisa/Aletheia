@@ -543,12 +543,31 @@ pre-proof disclosure are Day 24.
 
 ## Day 24 — Stage 17: deploy and index
 
-- [ ] Redeploy `AletheiaVerifier`, repoint the subgraph, update `docs/deployments.md`.
-- [ ] Disclosure notice shown **before** proving: a successful nationality claim reveals
+- [x] Redeploy `AletheiaVerifier`, repoint the subgraph, update `docs/deployments.md`.
+- [x] Disclosure notice shown **before** proving: a successful nationality claim reveals
       the nationality asked about.
 
 **Exit criteria** — a real nationality verification indexed and rendered, with the
-disclosure shown pre-proof.
+disclosure shown pre-proof. **Met** — `AletheiaVerifier` was redeployed live to Sepolia at
+`0xce95C47Ce991B6DB19cF0c55D0fAe3C6CA14a1cA` (block 11681721) with the new
+`Groth16VerifierNationality` at `0xB559D20Be873531F59d4A6020A481A32D9384Ab4`, via an
+incremental Ignition module that reuses the registry, profile and age verifier and wires
+both claim types on the fresh verifier (verified on-chain: `claimVerifier[1]` = the reused
+age verifier, `claimVerifier[2]` = the new one, `issuerRegistry` = the existing one). Both
+new contracts are verified on Etherscan and Sourcify. The durable manifest and
+`docs/deployments.md` were updated, with the previous verifier recorded under
+`previousDeployments`. The subgraph was redeployed as **v0.0.3** indexing both the new and
+the previous `AletheiaVerifier` so the old age records are preserved alongside the new ones
+(Decision 2); it synced clean. The holder flow gained a nationality claim path with a
+**pre-proof disclosure** — selecting Nationality shows a banner ("this reveals your
+nationality … you hold nationality 356 (IND)") and an acknowledgement checkbox that gates
+the prove button. Driven live in a browser end to end: extract → review → select Nationality
+→ disclosure shown and acknowledged → dev signer → a real in-browser Groth16 nationality
+proof → `submitNationalityClaim` mined on Sepolia (verificationId
+`0x7977b92f…a09bb9d8`, block 11681828) → the verifier flow rendered it **verified**
+("nationality 356", mock-dev, issuer active). The subgraph endpoint now returns six records:
+the five historical age claims and the new nationality claim. Deploy, subgraph and browser
+run all real; `next build` clean; full workspace typecheck green.
 
 ## Day 25 — Stage 18: `expiry.circom`
 

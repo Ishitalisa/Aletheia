@@ -124,18 +124,26 @@ export interface SubmitResult {
   event: ClaimVerifiedEvent;
 }
 
+/** The AletheiaVerifier entrypoints this app can submit to; both take the same calldata shape. */
+type ClaimFunction = "submitAgeClaim" | "submitNationalityClaim";
+
 /**
- * Simulate `submitAgeClaim` (reading back the verificationId and failing before gas if
+ * Simulate the claim submission (reading back the verificationId and failing before gas if
  * anything is wrong), send it, wait for the receipt, and pull the `ClaimVerified` event.
+ * Age and nationality share this path — only the entrypoint name differs.
  */
-export async function submitAgeClaim(signer: Signer, calldata: SolidityCalldata): Promise<SubmitResult> {
+async function submitClaim(
+  signer: Signer,
+  calldata: SolidityCalldata,
+  functionName: ClaimFunction,
+): Promise<SubmitResult> {
   const signals = calldata.publicSignals as readonly bigint[];
   const args = [calldata.a, calldata.b, calldata.c, signals] as const;
 
   const { result: verificationId, request } = await signer.publicClient.simulateContract({
     address: DEPLOYMENT.verifierAddress,
     abi: ALETHEIA_VERIFIER_ABI as Abi,
-    functionName: "submitAgeClaim",
+    functionName,
     args,
     account: signer.account,
   });
@@ -143,7 +151,7 @@ export async function submitAgeClaim(signer: Signer, calldata: SolidityCalldata)
   const hash = await signer.walletClient.writeContract(request);
   const receipt = await signer.publicClient.waitForTransactionReceipt({ hash });
   if (receipt.status !== "success") {
-    throw new Error(`submitAgeClaim reverted on-chain (status ${receipt.status})`);
+    throw new Error(`${functionName} reverted on-chain (status ${receipt.status})`);
   }
 
   const events = parseEventLogs({
@@ -155,4 +163,15 @@ export async function submitAgeClaim(signer: Signer, calldata: SolidityCalldata)
   if (!event) throw new Error("the transaction was mined but emitted no ClaimVerified event");
 
   return { hash, verificationId: verificationId as `0x${string}`, receipt, event: event.args };
+}
+
+export async function submitAgeClaim(signer: Signer, calldata: SolidityCalldata): Promise<SubmitResult> {
+  return submitClaim(signer, calldata, "submitAgeClaim");
+}
+
+export async function submitNationalityClaim(
+  signer: Signer,
+  calldata: SolidityCalldata,
+): Promise<SubmitResult> {
+  return submitClaim(signer, calldata, "submitNationalityClaim");
 }

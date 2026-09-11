@@ -311,6 +311,34 @@ a {
   margin: 6px 0 10px;
 }
 
+.disclosure {
+  background: color-mix(in srgb, var(--warn) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 55%, transparent);
+  color: #fde68a;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+  margin: 14px 0;
+}
+
+.disclosure strong {
+  color: #fef3c7;
+}
+
+.ack {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.ack input {
+  width: auto;
+  margin-top: 3px;
+}
+
 .pulse {
   animation: pulse 1.4s ease-in-out infinite;
 }
