@@ -341,12 +341,31 @@ compiled artifacts, so nothing is a literal or a stub.
 
 ## Day 17 — Stage 15: MRZ parsing
 
-- [ ] Implement per `docs/passport-extraction.md` (written, untracked — commit it).
-- [ ] Check digits, century inference, the nationality code table.
+- [x] Implement per `docs/passport-extraction.md` (already tracked). `packages/extraction`
+      parses a TD3 MRZ (two 44-char lines) into candidate credential fields through
+      `parseTd3Mrz`, returning a discriminated result: either the fields, or a list of
+      issues each naming the field it concerns. Extraction produces candidate fields, never
+      evidence — the package holds no key and touches no network.
+- [x] Check digits, century inference, the nationality code table. The ICAO `7-3-1`
+      modulus-10 check digit (`packages/extraction/src/checkdigit.ts`) is validated against
+      the published ICAO 9303 Part 3 TD3 specimen, so the algorithm is anchored to an
+      external authority rather than to itself. The century-inference rule and the ICAO
+      alpha-3 → ISO 3166-1 numeric nationality table live in `packages/credential`
+      (`date.ts`, `nationality.ts`) so one module owns every encoding; the parser calls
+      them. Century inference returns `resolved` / `ambiguous` / `invalid` and never guesses
+      a century.
 
 **Exit criteria** — an MRZ fixture extracts; a failing check digit reports **which
 field**; an ambiguous century and an unmappable nationality return *unsupported*, never a
-guess.
+guess. **Met** — a valid Indian TD3 fixture (`P<IND…` / `J8369854<4IND8805153F3001020…`,
+DOB 1988-05-15, expiry 2030-01-02, check digits computed with the ICAO algorithm) extracts
+to `{ documentNumber: "J8369854", nationality: 356, dateOfBirth: 19880515, expiryDate:
+20300102, sex: "F" }`; corrupting the date-of-birth check digit yields a `check-digit`
+issue on `dateOfBirth` (and no fields); a date of birth of year `20` returns an
+`ambiguous-century` issue (2020 vs 1920 both plausible at 2026-09-11) rather than a guess;
+and the ICAO code `UTO` returns an `unsupported-nationality` issue. `pnpm --filter
+@aletheia/extraction test` is 18/18 green, `pnpm --filter @aletheia/credential test` 52/52,
+`pnpm -r run typecheck` clean.
 
 ## Day 18 — Stage 15: image and PDF input
 
