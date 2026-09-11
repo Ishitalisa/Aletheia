@@ -15,6 +15,14 @@
       "privateInputs": 9,
       "publicOutputs": 2,
       "wires": 10890
+    },
+    "nationality": {
+      "nonLinearConstraints": 8586,
+      "linearConstraints": 2202,
+      "publicInputs": 7,
+      "privateInputs": 9,
+      "publicOutputs": 2,
+      "wires": 10783
     }
   }
 }

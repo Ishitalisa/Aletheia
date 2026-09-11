@@ -113,3 +113,49 @@ export function rawAgeInput(signed: SignedCredential, params: RawAgeParams): Cir
     subject: BigInt(subject),
   };
 }
+
+export interface RawNationalityParams {
+  /** `bigint` and out-of-range values are allowed: that is the point of these tests. */
+  currentDate: number | bigint;
+  /** The nationality the verifier is asking about, in the generic parameter slot. */
+  requiredNationality: number | bigint;
+  contextId: bigint;
+  /** Override the public issuer key, to model a forged-issuer attempt. */
+  issuer?: { ax: bigint; ay: bigint };
+  /** Override the public subject, to model a stolen-credential attempt. */
+  subject?: string;
+  /** Override the public schemaVersion, to test the circuit's version pin. */
+  schemaVersion?: number | bigint;
+}
+
+/**
+ * Assemble a `nationality.circom` input directly, bypassing any library validation, the
+ * same way {@link rawAgeInput} does for the age circuit. The nine-signal layout is
+ * identical to age's; only the generic parameter slot changes name (requiredNationality
+ * instead of minimumAge).
+ */
+export function rawNationalityInput(
+  signed: SignedCredential,
+  params: RawNationalityParams,
+): CircuitInput {
+  const issuer = params.issuer ?? signed.issuer;
+  const subject = params.subject ?? signed.credential.subject;
+  return {
+    credentialId: signed.credential.credentialId,
+    dateOfBirth: signed.credential.dateOfBirth,
+    nationality: signed.credential.nationality,
+    expiryDate: signed.credential.expiryDate,
+    issuedAt: signed.credential.issuedAt,
+    identitySecret: signed.credential.identitySecret,
+    sigR8x: signed.signature.r8x,
+    sigR8y: signed.signature.r8y,
+    sigS: signed.signature.s,
+    schemaVersion: params.schemaVersion ?? signed.credential.schemaVersion,
+    issuerAx: issuer.ax,
+    issuerAy: issuer.ay,
+    currentDate: params.currentDate,
+    requiredNationality: params.requiredNationality,
+    contextId: params.contextId,
+    subject: BigInt(subject),
+  };
+}
