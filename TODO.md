@@ -495,11 +495,26 @@ contract and the age verifier are reused unchanged.
 
 ## Day 22 — Stage 17: `nationality.circom`
 
-- [ ] On the shared base. `requiredNationality` goes in the same generic
+- [x] On the shared base. `requiredNationality` goes in the same generic
       claim-parameter slot age uses, keeping one nine-signal layout across all claims.
 
 **Exit criteria** — compiles `--inspect` clean, constraint count locked, negative cases
-fail: wrong nationality, tampered field, wrong issuer, expired credential.
+fail: wrong nationality, tampered field, wrong issuer, expired credential. **Met** —
+`circuits/nationality.circom` instantiates `CredentialClaimBase(2, 2)` (schema v2, claim
+type 2) and adds one statement, `requiredNationality === nationality`, with
+`requiredNationality` in the exact generic parameter slot age's `minimumAge` occupies —
+same nine-signal layout, seven public inputs, two outputs. It compiles `--inspect` clean
+(no actionable warnings) at 8586 non-linear + 2202 linear constraints, pinned in
+`constraints.lock.json` and asserted by test. `test/nationality.test.ts` (14 tests) covers
+the positive case from a real issuer signature (fixture nationality 356), the nullifier and
+identity-nullifier cross-checks against the pinned fixture values (claim type 2 nullifier
+differs from age; identity nullifier is identical, being claim-type independent), the
+nine-signal order, the schemaVersion pin, and the negatives the exit criteria name — wrong
+nationality (both neighbours and unrelated codes), every tampered signed field, a wrong
+issuer key, an expired credential (with the expiry-boundary positive) — plus a stolen-wallet
+case, signature-component forgery, and out-of-range parameter and credential values. Full
+circuits suite 40/40 (up from 26); the age constraint lock still matches. Trusted setup,
+the Solidity verifier, the frozen layout and `submitNationalityClaim` are Day 23.
 
 ## Day 23 — Stage 17: setup, verifier, contract
 
