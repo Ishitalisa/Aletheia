@@ -91,7 +91,22 @@ the raw MRZ yields, and the gate test severs `http`/`https`/`fetch` around each 
 asserts zero network hits: the wasm core and the model load from disk, never a CDN. Byte and
 page caps bound a hostile file before decode, and extracted text is only ever parsed, never
 evaluated. Extraction runs off the main thread through a Web Worker transport over the same
-tested core. The next task is **Day 19**, `documentKey` derivation (Part 3, product).
+tested core. Day 19 is now done: **`documentKey` derivation** (Part 3, product).
+`packages/extraction/src/document-key.ts` adds `deriveDocumentKey`, a pure offline function
+that turns the four stable identifying fields of a TD3 passport — issuing nationality,
+document number, date of birth, date of expiry (the ICAO chip-key tuple, plus nationality
+to disambiguate a number reused across issuers) — into the stable field element
+`deriveIdentitySecret({ issuerSalt, documentKey })` expects and nothing produced before.
+It hashes a domain-separated, unambiguously framed canonical string with SHA-256 and
+reduces it into the bn128 field with `hashToField` (leading 31 bytes). All four
+exit-criteria properties are gated by test: a pinned fixture vector so the derivation
+cannot drift; the same passport → the same key (directly, and re-parsed twice through the
+real `parseTd3Mrz`); four independently-differing passports all distinct plus a
+field-framing test that a shifted boundary cannot alias another; a canonical non-zero
+element below the modulus; and it never leaves the device (pure, holds no key, issues no
+request). The value flows straight into `deriveIdentitySecret`, confirmed end to end.
+Wiring it into the holder flow is Day 20. The next task is **Day 20**, the holder flow
+(`packages/web`, Part 3).
 
 ## Build status
 
@@ -106,7 +121,7 @@ tested core. The next task is **Day 19**, `documentKey` derivation (Part 3, prod
 | `packages/subgraph` | **6 matchstick tests passing** (Day 11); `graph codegen`/`graph build` clean, no `eth_call`; deployed to Studio (Day 12), slug `aletheia` v0.0.2, synced clean |
 | `packages/query` | **40 of 40 passing** (Day 14 done, +13 for the five-state derivation); `scripts/check.ts` and `scripts/states.ts` pass live against the deployed Studio endpoint |
 | `packages/ens` | **11 of 11 passing** (Day 15 done); pure seams unit-tested (env validation, UTS-46 name normalisation, address checksumming); `scripts/check.ts` passes live against real mainnet ENS through the Universal Resolver |
-| `packages/extraction` | **32 of 32 passing** (Days 17–18 done): Day 17 TD3 MRZ parsing (check digits anchored to the ICAO 9303 specimen, century inference, sex); Day 18 image and PDF input — `extractFromMrzText`/`extractFromImage`/`extractFromPdf` converge on the one parser, a committed fixture image (real offline OCR, MRZ model) and fixture PDF (pdf.js text layer, JS disabled) reach the same fields as the raw MRZ, the gate test proves zero network by blocking every socket, and byte/page caps bound input before decode. `typecheck`/`build` clean; built `dist` smoke-tested on both fixtures. |
+| `packages/extraction` | **44 of 44 passing** (Days 17–19 done): Day 17 TD3 MRZ parsing (check digits anchored to the ICAO 9303 specimen, century inference, sex); Day 18 image and PDF input — `extractFromMrzText`/`extractFromImage`/`extractFromPdf` converge on the one parser, a committed fixture image (real offline OCR, MRZ model) and fixture PDF (pdf.js text layer, JS disabled) reach the same fields as the raw MRZ, the gate test proves zero network by blocking every socket, and byte/page caps bound input before decode; Day 19 `deriveDocumentKey` — a stable, on-device field element identifying one passport (SHA-256 over the four stable MRZ identity fields, reduced with `hashToField`), +12 tests covering a pinned vector, determinism through the real parser, cross-document distinctness and field element-ness. `typecheck`/`build` clean; built `dist` smoke-tested. |
 | `scripts` | **no unit tests by design** (Day 16 done): it is the cross-package end-to-end runner, and its whole product is a live run against real infrastructure, `pnpm --filter @aletheia/scripts run m1`. `typecheck` clean. A recorded green run is below. |
 
 `packages/web` is named in `docs/architecture.md` and does not exist yet (Day 20);
@@ -344,7 +359,7 @@ The submit left one real `Verification` on Sepolia and in the subgraph
 | 13 | GraphQL query layer | **closed** — `packages/query` reads live from the Studio endpoint: `scripts/check.ts` returned indexer block 11676205, the stage 11 `Verification` matched against its transaction hash and `mock-dev` issuer label, and the derived `Profile.verifications` side; the **five verification states** are now derived by the pure `deriveVerificationState` and all five reproduced from real endpoint data (Day 14) — a real on-chain revoke/restore for `revoked`, a real submit-and-poll for `pending`; 40 unit tests green, no mocked `fetch` (next: Day 15, ENS) |
 | 14 | ENS resolution | **closed** — `packages/ens` resolves forward and reverse through the Universal Resolver proxy over mainnet, read-only, viem 2.56: `scripts/check.ts` ran live and `vitalik.eth` → `0xd8dA…6045` with the reverse round-trip, a nonexistent name returned not-found without throwing, and a keccak-derived address with no reverse record returned null; 11 unit tests green, the name resolved live and stored nowhere |
 | — | **M1 end-to-end** | **closed** — the top-level `scripts` runner drives all nine stages against real infrastructure in one command; a green run submitted tx `0xc4648df4…7f313c` (block 11678827) and read the record back `verified` from the deployed subgraph, observing `pending` then `verified` |
-| 15 | Document extraction | **MRZ parsing closed (Day 17)** — `packages/extraction` parses a TD3 MRZ into candidate fields: an Indian fixture extracts, a failing check digit names its field, an ambiguous century and an unmapped nationality return without guessing; check digits validated against the ICAO 9303 specimen; 18 tests green. Image/PDF input in a worker (Day 18) and `documentKey` (Day 19) remain |
+| 15 | Document extraction | **closed** — `packages/extraction` parses a TD3 MRZ into candidate fields (Day 17: Indian fixture extracts, a failing check digit names its field, an ambiguous century and unmapped nationality return without guessing; ICAO 9303 specimen anchor), converges typed/image/PDF input on the one parser in a worker with zero network and input caps (Day 18), and derives `documentKey` — a stable on-device field element identifying one passport, feeding `deriveIdentitySecret` (Day 19); 44 tests green |
 | 16 | Frontend (age only) | not started; package does not exist |
 | 17 | NationalityClaim | not started |
 | 18 | ExpiryClaim | not started |

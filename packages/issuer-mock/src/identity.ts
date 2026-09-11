@@ -23,9 +23,11 @@ export interface IdentitySecretInput {
   /** The issuer's long-lived secret. Never leaves the issuer. */
   issuerSalt: bigint;
   /**
-   * A field element derived from the source document's identifier — for a passport, a
-   * digest of the document number. Producing it is the extraction layer's job, because
-   * only that layer knows the document format; see `docs/passport-extraction.md`.
+   * A field element identifying the source document — for a passport, a digest of its
+   * stable identifying fields (issuing nationality, number, date of birth, date of
+   * expiry). Producing it is the extraction layer's job, because only that layer knows the
+   * document format: `@aletheia/extraction`'s `deriveDocumentKey`, see
+   * `docs/passport-extraction.md`.
    */
   documentKey: bigint;
 }
