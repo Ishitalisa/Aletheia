@@ -36,9 +36,17 @@ interface IGroth16Verifier9 {
  */
 contract AletheiaVerifier is Ownable2Step {
     uint8 public constant CLAIM_TYPE_AGE = 1;
+    uint8 public constant CLAIM_TYPE_NATIONALITY = 2;
 
     /// @dev Matches `MAX_MINIMUM_AGE` in packages/credential and the circuit's range check.
     uint256 public constant MAX_MINIMUM_AGE = 120;
+
+    /// @dev Matches `MAX_COUNTRY_CODE` in packages/credential: ISO 3166-1 numeric codes are
+    /// at most three digits. The circuit range-checks `requiredNationality` to 16 bits and
+    /// forces it equal to the signed nationality, so a real proof from a registered issuer
+    /// always carries a valid code; this bound stops a nonsensical parameter being recorded
+    /// even if a future circuit forgot to, the same role `MAX_MINIMUM_AGE` plays for age.
+    uint256 public constant MAX_NATIONALITY_CODE = 999;
 
     /**
      * @dev The single credential schema version this deployment serves.
@@ -135,8 +143,56 @@ contract AletheiaVerifier is Ownable2Step {
         uint256[2] calldata c,
         uint256[9] calldata publicSignals
     ) external returns (bytes32 verificationId) {
-        address verifier = claimVerifier[CLAIM_TYPE_AGE];
-        if (verifier == address(0)) revert NoVerifierForClaim(CLAIM_TYPE_AGE);
+        return _submitClaim(CLAIM_TYPE_AGE, MAX_MINIMUM_AGE, a, b, c, publicSignals);
+    }
+
+    /**
+     * @notice Prove a nationality claim: the holder of an issuer-signed, unexpired
+     * credential holds nationality `publicSignals[6]` (an ISO 3166-1 numeric code).
+     *
+     * Public signals, in the same nine-signal v2 order age uses, with the generic
+     * claim-parameter slot carrying `requiredNationality` instead of `minimumAge`:
+     * `[nullifier, identityNullifier, schemaVersion, issuerAx, issuerAy, currentDate,
+     * requiredNationality, contextId, subject]` — see `docs/public-signals.md`.
+     *
+     * Unlike age, a successful nationality proof discloses the value asked about: it tells
+     * the verifier the holder's nationality is exactly `requiredNationality`. The holder is
+     * shown that before proving (the frontend disclosure notice). Everything else is
+     * identical to age, because both claims share the same on-chain guards.
+     *
+     * Reverts unless everything holds. There is no partial success.
+     */
+    function submitNationalityClaim(
+        uint256[2] calldata a,
+        uint256[2][2] calldata b,
+        uint256[2] calldata c,
+        uint256[9] calldata publicSignals
+    ) external returns (bytes32 verificationId) {
+        return _submitClaim(CLAIM_TYPE_NATIONALITY, MAX_NATIONALITY_CODE, a, b, c, publicSignals);
+    }
+
+    /**
+     * @dev The one place a claim is verified and recorded, shared by every claim type.
+     *
+     * Age and nationality differ only in which verifier decides them, the claim type bound
+     * into the nullifier and event, and the maximum their generic parameter may take;
+     * everything that makes a proof mean anything — the schema pin, the sender binding, the
+     * date-currency check, the issuer-registry check, the reserve-before-verify ordering —
+     * is identical, so it lives here once rather than being copied per claim and risking
+     * one copy drifting. `publicSignals` is decoded by the nine-signal v2 index order frozen
+     * in `docs/public-signals.md`; the parameter slot's meaning is the only thing that
+     * changes between claim types, and it is never trusted beyond its range and the proof.
+     */
+    function _submitClaim(
+        uint8 claimType,
+        uint256 maxParameter,
+        uint256[2] calldata a,
+        uint256[2][2] calldata b,
+        uint256[2] calldata c,
+        uint256[9] calldata publicSignals
+    ) private returns (bytes32 verificationId) {
+        address verifier = claimVerifier[claimType];
+        if (verifier == address(0)) revert NoVerifierForClaim(claimType);
 
         // Refuse a proof for a schema this deployment does not serve. The circuit pins
         // this signal, so a real v2 proof always carries 2; anything else — a padded v1
@@ -154,16 +210,16 @@ contract AletheiaVerifier is Ownable2Step {
         }
 
         // Checked here as well as in the circuit. The circuit's range check stops field
-        // wraparound from forging a threshold; this stops a nonsensical parameter being
+        // wraparound from forging the parameter; this stops a nonsensical value being
         // recorded even if a future circuit forgot to.
-        if (publicSignals[6] > MAX_MINIMUM_AGE) {
-            revert ClaimParameterOutOfRange(publicSignals[6], MAX_MINIMUM_AGE);
+        if (publicSignals[6] > maxParameter) {
+            revert ClaimParameterOutOfRange(publicSignals[6], maxParameter);
         }
 
         uint32 credentialValidOn = _requireCurrentDate(publicSignals[5]);
         bytes32 issuerId = issuerRegistry.requireActive(publicSignals[3], publicSignals[4]);
 
-        verificationId = _reserve(CLAIM_TYPE_AGE, publicSignals[7], publicSignals[0]);
+        verificationId = _reserve(claimType, publicSignals[7], publicSignals[0]);
 
         if (!IGroth16Verifier9(verifier).verifyProof(a, b, c, publicSignals)) {
             revert InvalidProof();
@@ -172,7 +228,7 @@ contract AletheiaVerifier is Ownable2Step {
         emit ClaimVerified(
             verificationId,
             msg.sender,
-            CLAIM_TYPE_AGE,
+            claimType,
             issuerId,
             publicSignals[6],
             credentialValidOn,

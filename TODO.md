@@ -518,10 +518,28 @@ the Solidity verifier, the frozen layout and `submitNationalityClaim` are Day 23
 
 ## Day 23 — Stage 17: setup, verifier, contract
 
-- [ ] Trusted setup, export the verifier, freeze the layout in `docs/public-signals.md`,
+- [x] Trusted setup, export the verifier, freeze the layout in `docs/public-signals.md`,
       add `submitNationalityClaim`.
 
-**Exit criteria** — contract tests green; the layout asserted against artifacts.
+**Exit criteria** — contract tests green; the layout asserted against artifacts. **Met** —
+the nationality circuit got its phase-2 setup (`setup.ts` now loops age + nationality) over
+the existing **local-development** phase-1 ptau, provenance recorded as such in
+`build/nationality/setup.json` (Decision 1); the age zkey and its deployed verifier are
+untouched. `scripts/export-verifier.ts` gained a `nationality` entry and generated
+`Groth16VerifierNationality.sol`, byte-for-byte asserted against the current proving key by
+test. `AletheiaVerifier` gained `submitNationalityClaim` (claim type 2, parameter bound
+`MAX_NATIONALITY_CODE = 999`); the age and nationality entrypoints now share one private
+`_submitClaim` so the schema pin, sender binding, date-currency, issuer-registry and
+reserve-before-verify guards exist once — `submitAgeClaim`'s external behaviour is
+unchanged. The Ignition module deploys the nationality verifier and wires claim type 2. The
+`docs/public-signals.md` NationalityClaim layout is frozen (nine signals, `requiredNationality`
+in the generic slot) and asserted against `NATIONALITY_PUBLIC_SIGNALS`, the generated
+verifier and `submitNationalityClaim`. Contracts suite **67/67** (up from 46; +21):
+`Groth16VerifierNationality` (6), `AletheiaVerifier — nationality claim` (11, including that
+the identityNullifier is identical across an age and a nationality claim for one credential
+and context while the replay nullifier differs), and the nationality layout-agreement block
+(4). Circuits 40/40; full workspace typecheck green. Deploy, subgraph repoint and the
+pre-proof disclosure are Day 24.
 
 ## Day 24 — Stage 17: deploy and index
 

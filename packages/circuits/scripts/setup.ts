@@ -142,7 +142,7 @@ async function main(): Promise<void> {
   const phase1 = await ensurePtau();
 
   const records: SetupRecord[] = [];
-  for (const name of ["age"]) {
+  for (const name of ["age", "nationality"]) {
     records.push(await setupCircuit(name, phase1, force));
   }
 

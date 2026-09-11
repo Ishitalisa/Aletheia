@@ -14,6 +14,7 @@ import {
 import { loadCredentialFixture } from "@aletheia/credential/test-fixture";
 import {
   proveAgeClaim,
+  proveNationalityClaim,
   toSolidityCalldata,
   type SolidityCalldata,
 } from "@aletheia/circuits";
@@ -38,11 +39,13 @@ export async function deployAletheia() {
     owner.account.address,
   ]);
   const groth16 = await viem.deployContract("Groth16VerifierAge");
+  const groth16Nationality = await viem.deployContract("Groth16VerifierNationality");
   const verifier = await viem.deployContract("AletheiaVerifier", [
     owner.account.address,
     registry.address,
   ]);
   await verifier.write.setClaimVerifier([1, groth16.address]);
+  await verifier.write.setClaimVerifier([2, groth16Nationality.address]);
 
   // The issuer key is generated per test run, so nothing here depends on a key that
   // exists in the repository.
@@ -53,7 +56,19 @@ export async function deployAletheia() {
     MOCK_ISSUER_LABEL,
   ]);
 
-  return { connection, viem, publicClient, owner, holder, stranger, registry, groth16, verifier, issuer };
+  return {
+    connection,
+    viem,
+    publicClient,
+    owner,
+    holder,
+    stranger,
+    registry,
+    groth16,
+    groth16Nationality,
+    verifier,
+    issuer,
+  };
 }
 
 /** The date the chain currently considers today, read from the contract itself. */
@@ -143,6 +158,72 @@ export async function submitAsHolder(
   bundle: AgeClaimBundle,
 ): Promise<`0x${string}`> {
   return deployment.verifier.write.submitAgeClaim(
+    [bundle.calldata.a, bundle.calldata.b, bundle.calldata.c, bundle.signals],
+    { account: deployment.holder.account },
+  );
+}
+
+export interface NationalityClaimOptions {
+  /** The nationality the verifier asks about; defaults to the fixture's (India, 356). */
+  requiredNationality?: number;
+  currentDate?: number;
+  contextId?: bigint;
+  /** Sign with a different issuer key, to model an unregistered issuer. */
+  issuerPrivateKey?: Uint8Array;
+  /** Override credential fields before signing. */
+  credential?: Partial<NormalizedCredential>;
+}
+
+/**
+ * A nationality claim bundle. The signals tuple is the same nine-signal v2 order as age's,
+ * with `requiredNationality` in the generic parameter slot (index 6).
+ */
+export interface NationalityClaimBundle {
+  signed: SignedCredential;
+  calldata: SolidityCalldata;
+  signals: AgeClaimBundle["signals"];
+  publicSignals: string[];
+}
+
+/**
+ * Sign a credential for the holder's own address and prove a nationality claim about it.
+ *
+ * The requested nationality defaults to the fixture credential's, so the equality in the
+ * circuit holds; passing a different `requiredNationality` models the wrong-nationality
+ * negative case (an unsatisfiable witness, so no proof can be built).
+ */
+export async function buildNationalityClaim(
+  deployment: Deployment,
+  options: NationalityClaimOptions = {},
+): Promise<NationalityClaimBundle> {
+  const { credential } = loadCredentialFixture();
+  const signed = await signCredential(options.issuerPrivateKey ?? deployment.issuer.privateKey, {
+    ...credential,
+    subject: deployment.holder.account.address.toLowerCase(),
+    ...options.credential,
+  });
+
+  const proved = await proveNationalityClaim(signed, {
+    requiredNationality: options.requiredNationality ?? signed.credential.nationality,
+    currentDate: options.currentDate ?? (await chainToday(deployment)),
+    contextId: options.contextId ?? loadCredentialFixture().expected.contextId,
+  });
+  const calldata = await toSolidityCalldata(proved.proof, proved.publicSignals);
+
+  return {
+    signed,
+    calldata,
+    signals: calldata.publicSignals as unknown as AgeClaimBundle["signals"],
+    publicSignals: proved.publicSignals,
+  };
+}
+
+/** Submit a nationality claim as the holder. Returns the transaction hash. */
+export async function submitNationalityAsHolder(
+  deployment: Deployment,
+  bundle: NationalityClaimBundle,
+): Promise<`0x${string}`> {
+  return deployment.verifier.write.submitNationalityClaim(
     [bundle.calldata.a, bundle.calldata.b, bundle.calldata.c, bundle.signals],
     { account: deployment.holder.account },
   );
