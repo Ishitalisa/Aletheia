@@ -105,8 +105,20 @@ real `parseTd3Mrz`); four independently-differing passports all distinct plus a
 field-framing test that a shifted boundary cannot alias another; a canonical non-zero
 element below the modulus; and it never leaves the device (pure, holds no key, issues no
 request). The value flows straight into `deriveIdentitySecret`, confirmed end to end.
-Wiring it into the holder flow is Day 20. The next task is **Day 20**, the holder flow
-(`packages/web`, Part 3).
+Day 20 is now done: the **holder flow** (`packages/web`, Next.js 15) runs the whole
+pipeline in the browser — extract, a **mandatory** review-and-correct step, `documentKey`
+derivation and mock-dev signing on-device, a real Groth16 proof via snarkjs (wasm/zkey
+served from the app origin), and `submitAgeClaim` on Sepolia through viem (injected wallet,
+or a dev local-signer for headless runs). A live run produced tx
+`0xcdadf4342f73da581fddaae76f3122806daf3853e9d94d4d93d237c8ac24044a` (block 11680359,
+success), cross-checked on-chain: `ClaimVerified` with the connected wallet as subject, the
+registered `mock-dev` issuer, claimType 1, minAge 18. The network tab over the run shows
+only same-origin traffic (app chunks, the gitignored mock-dev keystore, the circuit
+wasm/zkey/vkey, snarkjs worker blobs) plus RPC calls carrying only the proof calldata — the
+date of birth, nationality, expiry and document number never leave the device. Making the
+browser bundle possible needed `./browser` (and `@aletheia/credential/test-fixture`)
+subpath exports splitting the fs-only pieces out of four packages, leaving every Node
+barrel unchanged. The next task is **Day 21**, the verifier flow (`packages/web`, Part 3).
 
 ## Build status
 
@@ -123,6 +135,7 @@ Wiring it into the holder flow is Day 20. The next task is **Day 20**, the holde
 | `packages/ens` | **11 of 11 passing** (Day 15 done); pure seams unit-tested (env validation, UTS-46 name normalisation, address checksumming); `scripts/check.ts` passes live against real mainnet ENS through the Universal Resolver |
 | `packages/extraction` | **44 of 44 passing** (Days 17–19 done): Day 17 TD3 MRZ parsing (check digits anchored to the ICAO 9303 specimen, century inference, sex); Day 18 image and PDF input — `extractFromMrzText`/`extractFromImage`/`extractFromPdf` converge on the one parser, a committed fixture image (real offline OCR, MRZ model) and fixture PDF (pdf.js text layer, JS disabled) reach the same fields as the raw MRZ, the gate test proves zero network by blocking every socket, and byte/page caps bound input before decode; Day 19 `deriveDocumentKey` — a stable, on-device field element identifying one passport (SHA-256 over the four stable MRZ identity fields, reduced with `hashToField`), +12 tests covering a pinned vector, determinism through the real parser, cross-document distinctness and field element-ness. `typecheck`/`build` clean; built `dist` smoke-tested. |
 | `scripts` | **no unit tests by design** (Day 16 done): it is the cross-package end-to-end runner, and its whole product is a live run against real infrastructure, `pnpm --filter @aletheia/scripts run m1`. `typecheck` clean. A recorded green run is below. |
+| `packages/web` | **Day 20 done** — the Next.js holder flow. No unit tests by design; its product is a live browser run against Sepolia. `typecheck` clean; a recorded run submitted tx `0xcdadf4…24044a` (block 11680359) from a browser-produced proof, with the passport never leaving the device (network-tab verified). Reuses the shared packages through their new `./browser` entries. Setup and both signer paths in `packages/web/README.md`. |
 
 `packages/web` is named in `docs/architecture.md` and does not exist yet (Day 20);
 `packages/extraction` (Days 17–18) is what it will consume — the MRZ parser plus the
@@ -360,7 +373,7 @@ The submit left one real `Verification` on Sepolia and in the subgraph
 | 14 | ENS resolution | **closed** — `packages/ens` resolves forward and reverse through the Universal Resolver proxy over mainnet, read-only, viem 2.56: `scripts/check.ts` ran live and `vitalik.eth` → `0xd8dA…6045` with the reverse round-trip, a nonexistent name returned not-found without throwing, and a keccak-derived address with no reverse record returned null; 11 unit tests green, the name resolved live and stored nowhere |
 | — | **M1 end-to-end** | **closed** — the top-level `scripts` runner drives all nine stages against real infrastructure in one command; a green run submitted tx `0xc4648df4…7f313c` (block 11678827) and read the record back `verified` from the deployed subgraph, observing `pending` then `verified` |
 | 15 | Document extraction | **closed** — `packages/extraction` parses a TD3 MRZ into candidate fields (Day 17: Indian fixture extracts, a failing check digit names its field, an ambiguous century and unmapped nationality return without guessing; ICAO 9303 specimen anchor), converges typed/image/PDF input on the one parser in a worker with zero network and input caps (Day 18), and derives `documentKey` — a stable on-device field element identifying one passport, feeding `deriveIdentitySecret` (Day 19); 44 tests green |
-| 16 | Frontend (age only) | not started; package does not exist |
+| 16 | Frontend (age only) | **holder flow closed (Day 20)** — `packages/web` (Next.js) extracts, enforces a mandatory review, signs mock-dev on-device, proves age in-browser (snarkjs), and submits to Sepolia; a live run produced tx `0xcdadf4…24044a` (block 11680359) with the passport never leaving the device. Verifier flow (Day 21) remains |
 | 17 | NationalityClaim | not started |
 | 18 | ExpiryClaim | not started |
 | 19 | Multi-claim end-to-end | not started |

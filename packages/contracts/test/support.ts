@@ -8,10 +8,10 @@
 
 import {
   dateToYyyymmdd,
-  loadCredentialFixture,
   type NormalizedCredential,
   type SignedCredential,
 } from "@aletheia/credential";
+import { loadCredentialFixture } from "@aletheia/credential/test-fixture";
 import {
   proveAgeClaim,
   toSolidityCalldata,

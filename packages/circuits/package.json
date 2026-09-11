@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Circom 2.x claim circuits, Groth16 setup, and the proving API built on them.",
   "exports": {
-    ".": "./dist/index.js"
+    ".": "./dist/index.js",
+    "./browser": "./dist/browser.js"
   },
   "scripts": {
     "build:circuits": "node --experimental-strip-types --no-warnings scripts/compile.ts",

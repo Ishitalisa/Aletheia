@@ -14,7 +14,8 @@ import {
   type SignedCredentialJson,
 } from "@aletheia/credential";
 
-import { MOCK_ISSUER_LABEL, defaultKeystorePath, generateKeypair, readKeystore, writeKeystore } from "./keys.ts";
+import { MOCK_ISSUER_LABEL, generateKeypair } from "./keys.ts";
+import { defaultKeystorePath, readKeystore, writeKeystore } from "./keystore-node.ts";
 import { signCredential, verifySignedCredential } from "./sign.ts";
 
 const WARNING =

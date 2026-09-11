@@ -6,9 +6,9 @@ import {
   SCHEMA_VERSION,
   claimNullifier,
   identityNullifier,
-  loadCredentialFixture,
   type NormalizedCredential,
 } from "@aletheia/credential";
+import { loadCredentialFixture } from "@aletheia/credential/test-fixture";
 import { generateKeypair, signCredential } from "@aletheia/issuer-mock";
 
 import {

@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { after, test } from "node:test";
 
-import { CLAIM_TYPE, claimNullifier, loadCredentialFixture } from "@aletheia/credential";
+import { CLAIM_TYPE, claimNullifier } from "@aletheia/credential";
+import { loadCredentialFixture } from "@aletheia/credential/test-fixture";
 
 import {
   AGE_PUBLIC_SIGNALS,

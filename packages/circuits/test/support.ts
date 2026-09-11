@@ -11,10 +11,10 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  loadCredentialFixture,
   type NormalizedCredential,
   type SignedCredential,
 } from "@aletheia/credential";
+import { loadCredentialFixture } from "@aletheia/credential/test-fixture";
 import { generateKeypair, signCredential } from "@aletheia/issuer-mock";
 
 import { calculateWitness, checkWitness, type CircuitInput } from "../src/index.ts";

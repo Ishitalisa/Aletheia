@@ -178,6 +178,12 @@ Phase 1 and exactly why the issuer is labelled `mock-dev` on-chain.
 The user reviews and corrects every extracted field before anything is signed. Extraction
 saves typing; it is not an authority.
 
+This shipped in the Day 20 holder flow (`packages/web`): extraction, `documentKey`
+derivation, mock-dev signing and Groth16 proving all run in the browser, and the review
+step is a mandatory gate before signing. A live run submitted a real Sepolia transaction
+with the network tab showing only same-origin assets and RPC calldata — no passport field
+in any request. See `packages/web/README.md`.
+
 ## Image and PDF input
 
 The holder can hand extraction three things — the two MRZ lines typed in, a photo/scan

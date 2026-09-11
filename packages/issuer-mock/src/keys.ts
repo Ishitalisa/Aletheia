@@ -4,11 +4,11 @@
  * DEVELOPMENT ONLY. This key attests to nothing: whoever holds it can sign any
  * credential, and the mock issuer checks no identity before signing. See
  * `docs/trust-model.md`.
+ *
+ * This module is free of `node:fs` on purpose, so it can be bundled into the browser
+ * holder flow where the Phase 1 mock issuer signs on the holder's own device. Reading and
+ * writing keystore files lives in the Node-only `keystore-node.ts`.
  */
-
-import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import type { IssuerPublicKey } from "@aletheia/credential";
 import { assertFieldElement } from "@aletheia/credential";
@@ -38,12 +38,6 @@ const KEYSTORE_WARNING =
   "DEVELOPMENT MOCK ISSUER. This key performs no identity verification. " +
   "Credentials signed with it prove issuance by a mock issuer and nothing more. " +
   "Never register this key as a production issuer.";
-
-/** Default keystore location. The whole directory is gitignored. */
-export function defaultKeystorePath(): string {
-  const here = dirname(fileURLToPath(import.meta.url));
-  return process.env.ALETHEIA_ISSUER_KEYSTORE ?? join(here, "..", "keys", "issuer-mock.json");
-}
 
 function toHex(bytes: Uint8Array): string {
   return `0x${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
@@ -107,17 +101,4 @@ export async function parseKeystore(file: KeystoreFile): Promise<IssuerKeypair> 
     throw new Error("keystore publicKey does not match its privateKey");
   }
   return { privateKey, publicKey: derived };
-}
-
-export function writeKeystore(keypair: IssuerKeypair, path = defaultKeystorePath()): string {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(serializeKeystore(keypair), null, 2)}\n`, {
-    encoding: "utf8",
-    flag: "wx", // never silently overwrite an existing issuer key
-  });
-  return path;
-}
-
-export async function readKeystore(path = defaultKeystorePath()): Promise<IssuerKeypair> {
-  return parseKeystore(JSON.parse(readFileSync(path, "utf8")) as KeystoreFile);
 }

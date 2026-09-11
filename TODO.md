@@ -418,14 +418,38 @@ test` is 44/44 (up from 32); `typecheck` and `build` clean, built `dist` smoke-t
 
 ## Day 20 — Stage 16: holder flow
 
-- [ ] `packages/web`, Next.js. Extract, review and correct, sign with the mock issuer,
+- [x] `packages/web`, Next.js. Extract, review and correct, sign with the mock issuer,
       prove, submit.
-- [ ] The review step is mandatory — extraction is untrusted input by construction.
-- [ ] Contract addresses come from generated deployment output, never a literal.
+- [x] The review step is mandatory — extraction is untrusted input by construction.
+- [x] Contract addresses come from generated deployment output, never a literal.
 
 **Exit criteria** — a browser run on Sepolia producing a real transaction, with the
 document demonstrably never leaving the device (verified in the network tab, not
-asserted).
+asserted). **Met** — `packages/web` (Next.js 15) runs the whole pipeline in the browser:
+extract (the `@aletheia/extraction` core — typed MRZ, PDF, or image OCR), a **mandatory**
+review-and-correct step that gates everything after it, `deriveDocumentKey` + mock-dev
+signing on-device (`@aletheia/issuer-mock/browser`), a real Groth16 proof via snarkjs with
+the wasm/zkey served from the app origin (`@aletheia/circuits/browser`), and
+`submitAgeClaim` on Sepolia through viem. All three input paths were driven in the
+browser to the identical candidate fields, offline (zero external hosts): typed MRZ, the
+fixture PDF (pdf.js), and the fixture image (tesseract OCR). A live run drove the full
+pipeline end to end: proof produced and verified in-browser, then submitted as tx
+**`0xcdadf4342f73da581fddaae76f3122806daf3853e9d94d4d93d237c8ac24044a`** (block 11680359,
+status success, gas 312177), emitting `ClaimVerified` (verificationId
+`0xa080be04…728a84`, subject the connected wallet, issuerId the registered `mock-dev`,
+claimType 1, minAge 18) — cross-checked on-chain, not just in the UI. The network tab over
+the whole run shows only same-origin traffic (the app chunks, the gitignored mock-dev
+keystore, the circuit wasm/zkey/vkey, snarkjs worker blobs) plus the RPC calls carrying
+only the proof calldata and public signals; the date of birth, nationality, expiry and
+document number never appear in any request. Addresses come from
+`packages/contracts/deployments/sepolia.json` (imported, refreshed by
+`scripts/copy-assets.ts`), never a literal. Both signers are wired: injected MetaMask (the
+real design) and a dev local-signer behind `NEXT_PUBLIC_DEV_SIGNER_PRIVATE_KEY` that made
+the headless run above possible. To make the browser bundle possible, the fs-only pieces
+of `@aletheia/credential`, `@aletheia/issuer-mock`, `@aletheia/circuits` and
+`@aletheia/extraction` were split behind `./browser` (or `./test-fixture`) subpath exports,
+leaving each Node barrel unchanged; full workspace `typecheck` green, and
+credential/issuer-mock/circuits/extraction test suites green (52/18/26/44).
 
 ## Day 21 — Stage 16: verifier flow
 
