@@ -19,7 +19,11 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 
-import { AGE_PUBLIC_SIGNALS, NATIONALITY_PUBLIC_SIGNALS } from "@aletheia/circuits";
+import {
+  AGE_PUBLIC_SIGNALS,
+  EXPIRY_PUBLIC_SIGNALS,
+  NATIONALITY_PUBLIC_SIGNALS,
+} from "@aletheia/circuits";
 
 const read = (relative: string): string =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
@@ -27,6 +31,7 @@ const read = (relative: string): string =>
 const publicSignalsDoc = read("../../../docs/public-signals.md");
 const groth16Source = read("../contracts/verifiers/Groth16VerifierAge.sol");
 const groth16NationalitySource = read("../contracts/verifiers/Groth16VerifierNationality.sol");
+const groth16ExpirySource = read("../contracts/verifiers/Groth16VerifierExpiry.sol");
 const aletheiaSource = read("../contracts/AletheiaVerifier.sol");
 
 /** The expected layout, as an ordinary array, so the assertions read plainly. */
@@ -144,6 +149,47 @@ describe("NationalityClaim public-signal layout agreement", () => {
     assert.equal(
       calldataArity(signature, /uint256\[(\d+)\] calldata publicSignals/),
       NATIONALITY_LAYOUT.length,
+    );
+  });
+});
+
+describe("ExpiryClaim public-signal layout agreement", () => {
+  const EXPIRY_LAYOUT = [...EXPIRY_PUBLIC_SIGNALS];
+
+  it("is the same nine-signal layout as age, with only the generic slot renamed", () => {
+    // Every index is identical to age except slot 6, which age calls `minimumAge` and expiry
+    // calls `expiryParameter` (pinned to zero in-circuit). This is the invariant that lets
+    // AletheiaVerifier route all three claims through one nine-signal decode.
+    assert.equal(EXPIRY_LAYOUT.length, LAYOUT.length);
+    EXPIRY_LAYOUT.forEach((name, index) => {
+      if (index === 6) {
+        assert.equal(name, "expiryParameter");
+        assert.equal(LAYOUT[index], "minimumAge");
+      } else {
+        assert.equal(name, LAYOUT[index], `slot ${index} must match the age layout`);
+      }
+    });
+  });
+
+  it("docs/public-signals.md lists exactly the EXPIRY_PUBLIC_SIGNALS order", () => {
+    assert.deepEqual(layoutFromDoc(publicSignalsDoc, "## ExpiryClaim"), EXPIRY_LAYOUT);
+  });
+
+  it("the generated verifier takes one uint per signal", () => {
+    assert.equal(
+      calldataArity(groth16ExpirySource, /uint\[(\d+)\] calldata _pubSignals/),
+      EXPIRY_LAYOUT.length,
+    );
+  });
+
+  it("submitExpiryClaim takes one uint256 per signal", () => {
+    // Isolate the submitExpiryClaim signature so this asserts its arity, not age's.
+    const start = aletheiaSource.indexOf("function submitExpiryClaim");
+    assert.notEqual(start, -1, "AletheiaVerifier has no submitExpiryClaim");
+    const signature = aletheiaSource.slice(start, aletheiaSource.indexOf(")", start) + 1);
+    assert.equal(
+      calldataArity(signature, /uint256\[(\d+)\] calldata publicSignals/),
+      EXPIRY_LAYOUT.length,
     );
   });
 });

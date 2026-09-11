@@ -25,6 +25,7 @@ const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 export const VERIFIER_CONTRACTS = {
   age: "Groth16VerifierAge",
   nationality: "Groth16VerifierNationality",
+  expiry: "Groth16VerifierExpiry",
 } as const;
 
 export type VerifierCircuit = keyof typeof VERIFIER_CONTRACTS;

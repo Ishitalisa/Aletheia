@@ -37,6 +37,7 @@ interface IGroth16Verifier9 {
 contract AletheiaVerifier is Ownable2Step {
     uint8 public constant CLAIM_TYPE_AGE = 1;
     uint8 public constant CLAIM_TYPE_NATIONALITY = 2;
+    uint8 public constant CLAIM_TYPE_EXPIRY = 3;
 
     /// @dev Matches `MAX_MINIMUM_AGE` in packages/credential and the circuit's range check.
     uint256 public constant MAX_MINIMUM_AGE = 120;
@@ -47,6 +48,14 @@ contract AletheiaVerifier is Ownable2Step {
     /// always carries a valid code; this bound stops a nonsensical parameter being recorded
     /// even if a future circuit forgot to, the same role `MAX_MINIMUM_AGE` plays for age.
     uint256 public constant MAX_NATIONALITY_CODE = 999;
+
+    /// @dev An expiry claim has no parameter of its own: the circuit pins the generic
+    /// parameter slot (`publicSignals[6]`, `expiryParameter`) to zero, so the only value a
+    /// real proof can carry there is `0`. Passing this as the maximum makes the shared
+    /// range check enforce exactly that — any non-zero value reverts
+    /// `ClaimParameterOutOfRange` — so a proof cannot smuggle a non-zero parameter into an
+    /// expiry record even though it decodes through the same nine-signal shape as age.
+    uint256 public constant MAX_EXPIRY_PARAMETER = 0;
 
     /**
      * @dev The single credential schema version this deployment serves.
@@ -77,7 +86,7 @@ contract AletheiaVerifier is Ownable2Step {
      * @notice A claim that was proven on-chain.
      * @param verificationId `keccak256(claimType, contextId, nullifier)`, unique per record
      * @param subject the wallet that proved it, which is always `msg.sender`
-     * @param claimType 1 age (2 nationality and 3 expiry follow in later stages)
+     * @param claimType 1 age, 2 nationality, 3 expiry
      * @param issuerId the registry id of the issuer whose signature the proof used
      * @param claimParameter the question's parameter, e.g. the age threshold
      * @param credentialValidOn the date the credential was proven unexpired on, YYYYMMDD
@@ -172,14 +181,40 @@ contract AletheiaVerifier is Ownable2Step {
     }
 
     /**
+     * @notice Prove an expiry claim: the holder of an issuer-signed credential that was
+     * still valid — not expired — as of `publicSignals[5]` (`currentDate`).
+     *
+     * Public signals, in the same nine-signal v2 order age and nationality use, with the
+     * generic claim-parameter slot pinned to zero (`expiryParameter`, which an expiry claim
+     * has no use for):
+     * `[nullifier, identityNullifier, schemaVersion, issuerAx, issuerAy, currentDate,
+     * expiryParameter, contextId, subject]` — see `docs/public-signals.md`.
+     *
+     * This is the thinnest claim: the unexpired check every claim already runs
+     * (`expiryDate >= currentDate`) is the whole statement, so an expiry proof discloses only
+     * that the credential was valid on the date asked about — never the expiry date itself.
+     * The parameter bound is zero, so the shared range check rejects any non-zero parameter.
+     *
+     * Reverts unless everything holds. There is no partial success.
+     */
+    function submitExpiryClaim(
+        uint256[2] calldata a,
+        uint256[2][2] calldata b,
+        uint256[2] calldata c,
+        uint256[9] calldata publicSignals
+    ) external returns (bytes32 verificationId) {
+        return _submitClaim(CLAIM_TYPE_EXPIRY, MAX_EXPIRY_PARAMETER, a, b, c, publicSignals);
+    }
+
+    /**
      * @dev The one place a claim is verified and recorded, shared by every claim type.
      *
-     * Age and nationality differ only in which verifier decides them, the claim type bound
-     * into the nullifier and event, and the maximum their generic parameter may take;
-     * everything that makes a proof mean anything — the schema pin, the sender binding, the
-     * date-currency check, the issuer-registry check, the reserve-before-verify ordering —
-     * is identical, so it lives here once rather than being copied per claim and risking
-     * one copy drifting. `publicSignals` is decoded by the nine-signal v2 index order frozen
+     * Age, nationality and expiry differ only in which verifier decides them, the claim type
+     * bound into the nullifier and event, and the maximum their generic parameter may take
+     * (age `MAX_MINIMUM_AGE`, nationality `MAX_NATIONALITY_CODE`, expiry `0`); everything that
+     * makes a proof mean anything — the schema pin, the sender binding, the date-currency
+     * check, the issuer-registry check, the reserve-before-verify ordering — is identical, so
+     * it lives here once rather than being copied per claim and risking one copy drifting. `publicSignals` is decoded by the nine-signal v2 index order frozen
      * in `docs/public-signals.md`; the parameter slot's meaning is the only thing that
      * changes between claim types, and it is never trusted beyond its range and the proof.
      */
