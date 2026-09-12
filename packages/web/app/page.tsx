@@ -381,9 +381,6 @@ export default function Page() {
         <div className="samples">
           <div className="samples-head">
             <strong>Try a demo passport</strong>
-            <span className="badge-synthetic" title={SYNTHETIC_NOTICE}>
-              synthetic — not real
-            </span>
           </div>
           <p className="hint" style={{ marginTop: 0 }}>
             One click loads fictional passport data (valid ICAO check digits, invented people)
