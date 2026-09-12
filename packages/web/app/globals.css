@@ -643,3 +643,19 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+/* --- Privacy callout ---------------------------------------------------------- */
+.privacy-note {
+  background: color-mix(in srgb, var(--good) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--good) 38%, transparent);
+  color: #d7f5e3;
+  border-radius: 12px;
+  padding: 12px 15px;
+  font-size: 13px;
+  line-height: 1.55;
+  margin-bottom: 14px;
+}
+
+.privacy-note strong {
+  color: #eafff2;
+}

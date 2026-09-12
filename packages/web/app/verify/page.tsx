@@ -228,13 +228,23 @@ export default function VerifyPage() {
       <p className="sub">
         Look up an ENS name or a wallet address, read what it has proven, and see each record as one
         of five honest states. Everything is read live from the subgraph and mainnet ENS on this
-        device.
+        device. A verifier learns only the answer to the claim — never the holder’s document or the
+        data behind it.
       </p>
 
+      <div className="privacy-note">
+        <strong>🔒 A record holds a proof result, not a document.</strong> Each record carries the
+        issuer, claim type, the one value a nationality claim discloses, a validity date, a
+        per-context nullifier and the wallet — never a date of birth, document number, or the passport
+        itself. Nothing is stored off-chain; there is no server.
+      </div>
+
       <div className="mock-banner">
-        <span className="badge-mock">mock-dev</span> Every record here was signed by the Phase 1 mock
-        issuer, which verifies no identity. A record reading <span className="ok">verified</span>{" "}
-        means a real proof was accepted on-chain — never that a real-world identity was checked.
+        <span className="badge-mock">mock-dev</span> <strong>Phase 1, Sepolia test network.</strong>{" "}
+        Every record here was signed by a labelled mock issuer that verifies no identity — so{" "}
+        <span className="ok">verified</span> means a real proof was accepted on-chain, never that a
+        real-world identity was checked. In production a trusted issuer (e.g. <em>DigiLocker</em> or a
+        passport’s ICAO chip signature) would make the same record carry real-world weight.
       </div>
 
       {/* Look up an address or name */}

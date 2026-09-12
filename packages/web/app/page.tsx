@@ -332,15 +332,32 @@ export default function Page() {
 
       <h1>Holder flow</h1>
       <p className="sub">
-        Extract a passport MRZ, review it, then prove your <strong>age</strong>,{" "}
+        Extract a passport, review it, then prove your <strong>age</strong>,{" "}
         <strong>nationality</strong>, or that your credential is <strong>not expired</strong> — and
-        submit that proof to Sepolia. The passport never leaves this device; only the proof goes
-        on-chain.
+        submit only that proof to Ethereum. Aletheia lets you prove a fact about a document without
+        handing over the document.
       </p>
 
+      {/* Privacy — the core promise, stated plainly. */}
+      <div className="privacy-note">
+        <strong>🔒 Private by design — nothing is stored.</strong> Your passport is read, and the
+        proof is generated, entirely in this browser. There is <strong>no server and no database</strong>;
+        we never receive or store your document, photo, date of birth, or document number. Only a
+        zero-knowledge proof and its public signals are submitted on-chain — never the underlying
+        data. The one deliberate exception: a <strong>nationality</strong> proof reveals the
+        nationality you choose to prove (you acknowledge this before proving). Age and “not expired”
+        proofs reveal only that the fact holds.
+      </div>
+
+      {/* What this is + where it's going. */}
       <div className="mock-banner">
-        <span className="badge-mock">mock-dev</span> This issuer verifies no identity. A credential
-        signed here proves issuance by a mock issuer and nothing more — never a verified identity.
+        <span className="badge-mock">mock-dev</span> <strong>Phase 1 demo, on the Sepolia test
+        network</strong> — the fees you see are free test ETH, not real money. Today a labelled{" "}
+        <em>mock issuer</em> signs the credential and verifies no identity, so a record here proves a
+        real proof was checked on-chain, never a real passport. <strong>Next:</strong> a trusted
+        issuer — <em>DigiLocker</em>, or the passport’s own ICAO e-passport chip signature — attests
+        the credential so the proof carries real-world weight. The zero-knowledge layer, contracts,
+        and flow stay exactly the same; only the issuer becomes real.
       </div>
 
       {/* 1. Input */}
@@ -376,8 +393,10 @@ export default function Page() {
             ))}
           </div>
           <p className="hint">
-            Or paste / upload your own below — the passport is parsed on this device and never
-            leaves it.
+            Or use a real one below — paste the two MRZ lines from <em>any</em> passport, or upload a
+            scan/PDF. The parser is a full ICAO&nbsp;9303 TD3 reader (check digits and all), so it
+            works on any real passport’s machine-readable zone, not just these samples. It is parsed
+            on this device and never leaves it.
           </p>
         </div>
 
