@@ -7,6 +7,7 @@ import { todayUtcYyyymmdd } from "@aletheia/credential";
 import type { DocumentExtractionResult } from "@aletheia/extraction/browser";
 
 import { SiteHeader } from "./SiteHeader";
+import { countryName, downloadPassport, toVizDate, type PassportDoc } from "./samplePassport";
 import { DEFAULT_CONTEXT_LABEL, contextIdFromLabel } from "@/lib/context";
 import { DEPLOYMENT, etherscanTx } from "@/lib/deployment";
 import { extractImage, extractPdf, extractText } from "@/lib/extraction";
@@ -102,6 +103,33 @@ const SAMPLES: Sample[] = [
 // The default "Use sample MRZ" text: the valid adult, so the paste + Extract path has
 // something real to parse.
 const SAMPLE_MRZ = SAMPLES[0]!.mrz;
+
+/** Parse surname / given names out of an MRZ line 1 (`P<<country><SURNAME<<GIVEN<...`). */
+function nameFromMrz(mrz: string): { surname: string; given: string } {
+  const line1 = mrz.split(/\r?\n/)[0] ?? "";
+  const body = line1.slice(5); // skip "P<" + the 3-char issuing country
+  const [rawSurname = "", rawGiven = ""] = body.split("<<");
+  const clean = (s: string) => s.replace(/</g, " ").trim();
+  return { surname: clean(rawSurname), given: clean(rawGiven) };
+}
+
+/** Build the synthetic-passport document a sample renders into a downloadable image. */
+function docFromSample(s: Sample): PassportDoc {
+  const { surname, given } = nameFromMrz(s.mrz);
+  return {
+    countryName: countryName(s.fields.nationalityAlpha3),
+    countryCode: s.fields.nationalityAlpha3,
+    docNumber: s.fields.documentNumber,
+    surname,
+    given,
+    nationalityAlpha3: s.fields.nationalityAlpha3,
+    nationalityNumeric: s.fields.nationality,
+    dobDisplay: toVizDate(s.fields.dateOfBirth),
+    sex: s.fields.sex,
+    expiryDisplay: toVizDate(s.fields.expiryDate),
+    mrz: s.mrz,
+  };
+}
 
 function yyyymmddToInput(value: number): string {
   const s = value.toString().padStart(8, "0");
@@ -386,21 +414,32 @@ export default function Page() {
             </span>
           </div>
           <p className="hint" style={{ marginTop: 0 }}>
-            One click loads fictional passport data (valid ICAO check digits, invented people)
-            straight into review. Every sample is fabricated — {SYNTHETIC_NOTICE}.
+            <strong>Load</strong> drops fictional passport data straight into review (fastest).{" "}
+            <strong>Download image</strong> saves a synthetic passport page you can then upload on the
+            Image tab for a full scan → OCR run. Every sample is fabricated — {SYNTHETIC_NOTICE}.
           </p>
           <div className="sample-grid">
             {SAMPLES.map((s) => (
-              <button
-                key={s.id}
-                className="sample"
-                data-active={activeSample === s.id}
-                disabled={busy}
-                onClick={() => loadSample(s)}
-              >
+              <div key={s.id} className="sample" data-active={activeSample === s.id}>
                 <span className="sample-label">{s.label}</span>
                 <span className="sample-note">{s.note}</span>
-              </button>
+                <div className="sample-actions">
+                  <button
+                    className="sample-btn primary"
+                    disabled={busy}
+                    onClick={() => loadSample(s)}
+                  >
+                    Load →
+                  </button>
+                  <button
+                    className="sample-btn"
+                    disabled={busy}
+                    onClick={() => downloadPassport(docFromSample(s), `aletheia-sample-${s.id}.png`)}
+                  >
+                    ⬇ Image
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
           <p className="hint">

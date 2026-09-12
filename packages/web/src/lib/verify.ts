@@ -88,21 +88,22 @@ export interface ResolvedTarget {
  * throws with a readable message — that is a lookup the verifier cannot proceed from, not
  * a "no verifications" answer.
  */
-export async function resolveTarget(input: string): Promise<ResolvedTarget> {
+export async function resolveTarget(
+  input: string,
+  options: { resolveName?: boolean } = {},
+): Promise<ResolvedTarget> {
   const trimmed = input.trim();
   if (trimmed === "") throw new Error("enter an ENS name or a 0x address");
 
   if (isAddress(trimmed, { strict: false })) {
     const address = trimmed.toLowerCase() as `0x${string}`;
+    // The reverse-record lookup is a mainnet round-trip that is only for a display name, so
+    // it must not sit in front of the subgraph read. By default it is skipped here and the
+    // caller fills the name in asynchronously via `resolveDisplayName`; pass
+    // `resolveName: true` to keep the old blocking behaviour.
     let name: string | null = null;
-    if (ensAvailable) {
-      // Best-effort: a reverse-record lookup that fails must not block a plain address
-      // lookup, which needs no ENS at all.
-      try {
-        name = await getEnsResolver().resolveName(trimmed);
-      } catch {
-        name = null;
-      }
+    if (options.resolveName && ensAvailable) {
+      name = await resolveDisplayName(address);
     }
     return { address, via: "address", name };
   }
@@ -115,6 +116,19 @@ export async function resolveTarget(input: string): Promise<ResolvedTarget> {
     );
   }
   return { address: resolved.toLowerCase() as `0x${string}`, via: "ens", name: trimmed };
+}
+
+/**
+ * Best-effort ENS reverse resolution for a display name (address → primary name). Returns
+ * null on no record or any failure — it is only a nicety, never a gate on the lookup.
+ */
+export async function resolveDisplayName(address: string): Promise<string | null> {
+  if (!ensAvailable) return null;
+  try {
+    return await getEnsResolver().resolveName(address);
+  } catch {
+    return null;
+  }
 }
 
 /**

@@ -15,6 +15,7 @@ import {
   ensAvailable,
   etherscanTx,
   getQueryClient,
+  resolveDisplayName,
   resolveTarget,
   shortHex,
   yyyymmddToIso,
@@ -124,7 +125,17 @@ export default function VerifyPage() {
       setBusy(true);
       setError(null);
       try {
-        await queryProfile(await resolveTarget(raw));
+        // Resolve without the blocking ENS reverse-lookup, so the subgraph records appear as
+        // soon as the indexer responds rather than waiting on a mainnet round-trip.
+        const target = await resolveTarget(raw);
+        await queryProfile(target);
+        // Fill the display name in the background (address path only; a typed name already
+        // has one). A slow or empty reverse record never delays the records.
+        if (target.via === "address" && ensAvailable) {
+          void resolveDisplayName(target.address).then((name) => {
+            if (name) setResult((prev) => (prev ? { ...prev, target: { ...prev.target, name } } : prev));
+          });
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
         setResult(null);
@@ -279,7 +290,7 @@ export default function VerifyPage() {
           </p>
         )}
 
-        <label>Freshness window (verifier policy)</label>
+        <label>Freshness window — how recent must the proof be for you to accept it?</label>
         <select value={policyIdx} onChange={(e) => setPolicyIdx(Number(e.target.value))}>
           {FRESHNESS_PRESETS.map((p, i) => (
             <option key={p.label} value={i}>
@@ -288,9 +299,10 @@ export default function VerifyPage() {
           ))}
         </select>
         <p className="hint">
-          Freshness is your policy, not a property of the record: the same record can read{" "}
-          <span className="ok">verified</span> under a generous window and <b>stale</b> under a tight
-          one, and both are right.
+          This is <strong>your</strong> policy as the verifier, not a property of the record. A proof
+          submitted an hour ago reads <span className="ok">verified</span> under “30 days” but{" "}
+          <b>stale</b> under “5 minutes” — a bar checking age might accept a week-old proof, while a
+          bank login might demand one seconds old. Both readings of the same record are correct.
         </p>
 
         <div>
