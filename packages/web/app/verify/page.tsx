@@ -212,6 +212,13 @@ export default function VerifyPage() {
   // Clean up the poll on unmount.
   useEffect(() => () => stopWatch(), [stopWatch]);
 
+  // Warm the subgraph endpoint on mount, so the verifier's first real lookup doesn't pay the
+  // cold-start latency of a Studio endpoint that has been idle. Fire-and-forget; a failure
+  // here changes nothing about the real lookup.
+  useEffect(() => {
+    void getQueryClient().meta().catch(() => {});
+  }, []);
+
   // Handoff from the holder flow:
   //  - /verify?address=<wallet> prefills the lookup and runs it (the holder shares their address).
   //  - /verify?watch=<verificationId>&block=<minedBlock> prefills and starts the watch, so a
