@@ -132,6 +132,17 @@ export default function Page() {
   const [log, setLog] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
+  const [copiedAddr, setCopiedAddr] = useState(false);
+
+  async function copyAddress(addr: string) {
+    try {
+      await navigator.clipboard.writeText(addr);
+      setCopiedAddr(true);
+      setTimeout(() => setCopiedAddr(false), 1800);
+    } catch {
+      /* clipboard blocked — the address is still visible to copy by hand */
+    }
+  }
 
   function say(line: string) {
     setLog((prev) => [...prev, line]);
@@ -690,6 +701,27 @@ export default function Page() {
           <h2>
             <span className="n">✓</span> Verified on Sepolia <span className="badge-mock">mock-dev</span>
           </h2>
+
+          {/* What the holder gives the verifier. The wallet address is the identifier. */}
+          <div className="handoff">
+            <div className="handoff-label">Give this to the verifier to look you up:</div>
+            <div className="handoff-row">
+              <span className="mono handoff-addr">{outcome.subject}</span>
+              <button className="secondary copy-btn" onClick={() => void copyAddress(outcome.subject)}>
+                {copiedAddr ? "Copied ✓" : "Copy address"}
+              </button>
+            </div>
+            <p className="hint" style={{ marginTop: 8 }}>
+              Your <strong>wallet address</strong> is your identifier — <strong>no ENS name is
+              needed</strong>. The verifier pastes it into the Verifier flow to see this proof. (An
+              ENS name is optional: only if you already own one pointing at this wallet — Aletheia
+              never creates ENS names.)
+            </p>
+            <p style={{ marginTop: 8 }}>
+              <Link href={`/verify?address=${outcome.subject}`}>Open the verifier for this address →</Link>
+            </p>
+          </div>
+
           <div className="kv">
             <span className="k">Claim</span>
             <span className="ok">{outcome.claimSummary}</span>

@@ -201,14 +201,20 @@ export default function VerifyPage() {
   // Clean up the poll on unmount.
   useEffect(() => () => stopWatch(), [stopWatch]);
 
-  // Handoff from the holder flow: /verify?watch=<verificationId>&block=<minedBlock> prefills
-  // and starts the watch, so a verification just submitted on the other page is seen here
-  // going pending -> verified.
+  // Handoff from the holder flow:
+  //  - /verify?address=<wallet> prefills the lookup and runs it (the holder shares their address).
+  //  - /verify?watch=<verificationId>&block=<minedBlock> prefills and starts the watch, so a
+  //    verification just submitted on the other page is seen here going pending -> verified.
   const handoffDone = useRef(false);
   useEffect(() => {
     if (handoffDone.current) return;
     handoffDone.current = true;
     const params = new URLSearchParams(window.location.search);
+    const address = params.get("address");
+    if (address) {
+      setInput(address);
+      void runLookup(address);
+    }
     const id = params.get("watch");
     const block = params.get("block");
     if (id) {
@@ -216,7 +222,7 @@ export default function VerifyPage() {
       if (block) setWatchBlock(block);
       startWatch(id, block ?? undefined);
     }
-    // startWatch is intentionally not a dependency: this runs once, on mount only.
+    // startWatch/runLookup are intentionally not dependencies: this runs once, on mount only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -252,16 +258,21 @@ export default function VerifyPage() {
         <h2>
           <span className="n">1</span> Look up a subject
         </h2>
-        <label>ENS name or 0x address</label>
+        <label>Wallet address (or ENS name)</label>
         <input
           value={input}
           spellCheck={false}
-          placeholder={ensAvailable ? "vitalik.eth or 0x1234…abcd" : "0x1234…abcd"}
+          placeholder={ensAvailable ? "0x1234…abcd  (or vitalik.eth)" : "0x1234…abcd"}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && input.trim() && !busy) void runLookup(input);
           }}
         />
+        <p className="hint">
+          The holder’s <strong>wallet address</strong> is the identifier — it’s what their proof is
+          bound to. The holder gets it to copy on their success screen. An ENS name works too, but
+          only if the holder already owns one pointing at that wallet.
+        </p>
         {!ensAvailable && (
           <p className="hint">
             ENS name resolution is off (no mainnet RPC configured). Address lookup still works.
